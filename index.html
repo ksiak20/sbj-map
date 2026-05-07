@@ -336,32 +336,53 @@ async function fetchSheet(name){
   if(!r.ok) throw new Error(r.status);
   const t=await r.text();
   const j=JSON.parse(t.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
-  if(!j.table||!j.table.rows||j.table.rows.length===0) return [];
+  if(!j.table) return [];
 
-  const rawRows=j.table.rows;
+  const parsedHeaders = j.table.parsedNumHeaders || 0;
+  const rawRows = j.table.rows || [];
 
-  // 헤더 행 찾기 — * 포함 컬럼이 있는 행
-  // (Sheets gviz가 parsedNumHeaders:0 반환할 때 label이 모두 빈값)
-  const HEADER_KEYS=['품목ID','기업ID','날짜','발표일','구분','No'];
-  let headerIdx=-1;
-  for(let i=0;i<Math.min(rawRows.length,8);i++){
-    const vals=(rawRows[i].c||[]).map(c=>String(c&&c.v!=null?c.v:''));
-    const hasHeader=vals.some(v=>v.includes('*')||HEADER_KEYS.includes(v));
-    if(hasHeader){headerIdx=i;break;}
-  }
+  let cols = [];
+  let dataRows = [];
 
-  let cols, dataRows;
-  if(headerIdx>=0){
-    // 헤더 행에서 컬럼명 추출
-    cols=(rawRows[headerIdx].c||[]).map(c=>String(c&&c.v!=null?c.v:'').trim());
-    dataRows=rawRows.slice(headerIdx+1);
+  if(parsedHeaders > 0){
+    // Sheets가 헤더를 label로 파싱한 경우
+    // label에 여러 값이 합쳐져 있으므로 첫 번째 값만 추출
+    cols = j.table.cols.map(c => {
+      const label = c.label || '';
+      // label의 첫 줄 또는 첫 단어가 실제 컬럼명
+      // 패턴: "그룹명 컬럼명* 값1 값2..." 에서 컬럼명 추출
+      const parts = label.split(' ');
+      // * 포함된 부분 찾기
+      const reqIdx = parts.findIndex(p => p.includes('*'));
+      if(reqIdx >= 0) return parts[reqIdx];
+      // ID 패턴 찾기
+      const idIdx = parts.findIndex(p => 
+        p === '품목ID' || p === '기업ID' || p === '날짜' || 
+        p === '발표일' || p === '구분' || p === 'No'
+      );
+      if(idIdx >= 0) return parts[idIdx];
+      return '';
+    });
+    dataRows = rawRows;
   } else {
-    // 헤더 못 찾으면 label 사용
-    cols=j.table.cols.map(c=>c.label||c.id||'');
-    dataRows=rawRows;
+    // parsedNumHeaders:0 — 행에서 직접 헤더 찾기
+    const HEADER_KEYS=['품목ID','기업ID','날짜','발표일','구분','No'];
+    let headerIdx = -1;
+    for(let i=0; i<Math.min(rawRows.length,8); i++){
+      const vals = (rawRows[i].c||[]).map(c=>String(c&&c.v!=null?c.v:''));
+      if(vals.some(v=>v.includes('*')||HEADER_KEYS.includes(v))){
+        headerIdx=i; break;
+      }
+    }
+    if(headerIdx >= 0){
+      cols = (rawRows[headerIdx].c||[]).map(c=>String(c&&c.v!=null?c.v:'').trim());
+      dataRows = rawRows.slice(headerIdx+1);
+    } else {
+      cols = j.table.cols.map(c=>c.label||c.id||'');
+      dataRows = rawRows;
+    }
   }
 
-  // 건너뛸 행 패턴
   const SKIP=['──','※','새 규제','새 기업','새 품목','미국·일본','최신 건','매년'];
 
   return dataRows
@@ -369,7 +390,7 @@ async function fetchSheet(name){
       const o={};
       cols.forEach((col,i)=>{
         if(col){
-          const cell=row.c&&row.c[i];
+          const cell=(row.c||[])[i];
           o[col]=cell&&cell.v!=null?cell.v:'';
         }
       });
@@ -383,6 +404,8 @@ async function fetchSheet(name){
       return !SKIP.some(s=>first.startsWith(s));
     });
 }
+
+
 async function reloadData(){
   if(!CFG.sheetId){setS('err','Sheets ID 미설정');return;}
   setS('ld','불러오는 중...');
@@ -453,8 +476,18 @@ function getHistories(id){
   });
 }
 function getTradeRows(id){
-  return DB.trade.filter(r=>gf(r,'품목ID*','품목ID').trim()===id.trim())
-    .sort((a,b)=>Number(gf(b,'연도*','연도')||0)-Number(gf(a,'연도*','연도')||0));
+  // 해당 품목의 무역통계 행 전체 반환
+  return (DB.trade||[]).filter(r=>String(gf(r,'품목ID*','품목ID')).trim()===id.trim());
+}
+function getTradeByDiv(id, div){
+  // 구분(수입액/수출액)별 + 전세계 행만
+  return getTradeRows(id).filter(r=>
+    gf(r,'구분*','구분')===div && gf(r,'지역','지역')==='전세계'
+  )[0]||null;
+}
+function getTradeByRegion(id, div){
+  // 구분별 지역 행 전체
+  return getTradeRows(id).filter(r=>gf(r,'구분*','구분')===div);
 }
 
 // 기업마스터에서 특정 품목을 공급하는 기업 찾기
@@ -645,18 +678,63 @@ function showDetail(itemId){
     }).join(''):'';
 
   // 무역통계
-  const lt=trades[0]||{};
-  const yr=gf(lt,'연도*','연도');
-  const tradeHtml=yr?`
-    <div style="font-size:10px;color:var(--text3);margin-bottom:7px">${yr}년 기준</div>
-    <div class="stat-g">
-      <div class="stat"><div class="slabel">수입액</div><div class="sval">${gf(lt,'수입액(천달러)')||'—'}${gf(lt,'수입액(천달러)')?'천$':''}</div></div>
-      <div class="stat"><div class="slabel">수출액</div><div class="sval">${gf(lt,'수출액(천달러)')||'—'}${gf(lt,'수출액(천달러)')?'천$':''}</div></div>
-      <div class="stat"><div class="slabel">가격</div><div class="sval">${gf(lt,'가격($/kg)')||gf(lt,'가격($/L)')||gf(lt,'가격($/장)')||'—'}</div></div>
-      <div class="stat"><div class="slabel">생산량</div><div class="sval" style="font-size:11px">${gf(lt,'생산량')||'—'}</div></div>
-    </div>
-    ${gf(lt,'주요 수입국')?`<div class="field"><span class="fl">주요 수입국</span><span class="fv">${gf(lt,'주요 수입국')}</span></div>`:''}
-  `:`<div class="empty-note">무역통계 데이터 없음</div>`;
+  // 새 구조: 품목ID + 구분(수입액/수출액) + 지역 + 연도별 값
+  const imp = getTradeByDiv(id,'수입액');
+  const exp = getTradeByDiv(id,'수출액');
+  const impRegions = getTradeByRegion(id,'수입액').filter(r=>gf(r,'지역')!=='전세계');
+  const expRegions = getTradeByRegion(id,'수출액').filter(r=>gf(r,'지역')!=='전세계');
+  const YEARS = ['2022','2023','2024','2025'];
+
+  function makeYearRow(rowData, label, unit){
+    if(!rowData) return '';
+    const vals = YEARS.map(y=>{
+      const v = rowData[y];
+      return v!==undefined&&v!==''&&v!==null
+        ? Number(v).toLocaleString()
+        : '—';
+    });
+    return '<tr><td style="color:var(--text2);font-size:10px;padding:4px 6px;white-space:nowrap">'+label+'</td>'
+      + vals.map(v=>'<td style="text-align:right;padding:4px 6px;font-size:11px">'+v+'</td>').join('')
+      + '<td style="color:var(--text3);font-size:10px;padding:4px 6px">'+unit+'</td></tr>';
+  }
+
+  function makeRegionRows(regions, unit){
+    if(!regions||!regions.length) return '';
+    return regions.map(r=>{
+      const region = gf(r,'지역');
+      const pcts = YEARS.map(y=>{
+        const pctKey = '비중_'+y;
+        const v = r[pctKey];
+        if(v===undefined||v===''||v===null) return '—';
+        const n = parseFloat(v);
+        return isNaN(n)?'—':Math.round(n*100)+'%';
+      });
+      return '<tr style="font-size:10px">'
+        +'<td style="color:var(--text2);padding:3px 6px;padding-left:16px">∟ '+region+'</td>'
+        + pcts.map(p=>'<td style="text-align:right;padding:3px 6px;color:var(--text3)">'+p+'</td>').join('')
+        +'<td></td></tr>';
+    }).join('');
+  }
+
+  const tableStyle = 'width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px';
+  const thStyle = 'text-align:right;padding:3px 6px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)';
+
+  const yearHeaders = '<tr><th style="text-align:left;padding:3px 6px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)"></th>'
+    + YEARS.map(y=>'<th style="'+thStyle+'">'+y+'</th>').join('')
+    + '<th style="'+thStyle+'">단위</th></tr>';
+
+  const impUnit = imp ? gf(imp,'단위') : '';
+  const expUnit = exp ? gf(exp,'단위') : '';
+
+  const tradeHtml = (imp||exp) ? `
+    <table style="${tableStyle}">
+      ${yearHeaders}
+      ${makeYearRow(imp,'수입액 (전세계)',impUnit)}
+      ${makeRegionRows(impRegions,impUnit)}
+      ${makeYearRow(exp,'수출액 (전세계)',expUnit)}
+      ${makeRegionRows(expRegions,expUnit)}
+    </table>
+  ` : '<div class="empty-note">무역통계 데이터 없음</div>';
 
   // 공급기업 탭 — 기업마스터 연동
   const natCls=nat=>{
@@ -707,7 +785,7 @@ function showDetail(itemId){
   <div class="tbody" id="tt-밸류체인">
     ${vcNodes.length>1?`<div class="vc-wrap">${vcNodes.map((n,i)=>`<span class="vc-n">${n}</span>${i<vcNodes.length-1?'<span class="vc-a">→</span>':''}`).join('')}</div>`:`<div class="fv" style="font-size:11px;line-height:1.7">${vc||'밸류체인 정보 없음'}</div>`}
   </div>
-  <div class="tbody" id="tt-수출통제">${ctrlHtml}</div>
+  <div class="tbody" id="tt-수출통제">${ctrlHtml}${histHtml}</div>
   <div class="tbody" id="tt-무역통계">${tradeHtml}</div>
   <div class="tbody" id="tt-기업">
     <div class="sec">공급기업 (클릭 → 담당자·이력)</div>
