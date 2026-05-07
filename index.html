@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>반도체 소부장 공급망 맵 v4</title>
+<style>
+:root{
+  --blue-50:#E6F1FB;--blue-200:#85B7EB;--blue-400:#378ADD;--blue-600:#185FA5;--blue-800:#0C447C;
+  --green-50:#EAF3DE;--green-400:#639922;--green-600:#3B6D11;
+  --red-50:#FCEBEB;--red-400:#E24B4A;--red-600:#A32D2D;
+  --amber-50:#FAEEDA;--amber-400:#EF9F27;--amber-600:#854F0B;
+  --purple-50:#EEEDFE;--purple-400:#7F77DD;--purple-600:#534AB7;
+  --teal-50:#E1F5EE;--teal-400:#1D9E75;--teal-600:#0F6E56;
+  --gray-50:#F1EFE8;--gray-200:#B4B2A9;--gray-400:#888780;--gray-600:#5F5E5A;
+  --orange-50:#FBE9E7;--orange-400:#E65100;--orange-600:#BF360C;
+  --bg:#fff;--bg2:#F8F9FA;--bg3:#F1EFE8;
+  --text:#1a1a1a;--text2:#5F5E5A;--text3:#888780;
+  --border:#E2E0D8;--border2:#C8C6BE;
+  --r:8px;--rl:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--bg2);color:var(--text);font-size:13px;line-height:1.5;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── 헤더 ── */
+.hdr{background:var(--bg);border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.hdr-logo{width:28px;height:28px;background:var(--blue-600);border-radius:6px;display:flex;align-items:center;justify-content:center}
+.hdr-logo svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2}
+.hdr-title{font-size:14px;font-weight:600;color:var(--blue-600)}
+.hdr-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:7px}
+.hbtn{padding:5px 11px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid var(--border2);background:var(--bg);color:var(--text2);transition:all .15s;white-space:nowrap}
+.hbtn:hover{background:var(--bg2);border-color:var(--blue-400);color:var(--blue-600)}
+.hbtn.pri{background:var(--blue-600);color:#fff;border-color:var(--blue-600)}
+.hbtn.pri:hover{background:var(--blue-800)}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--gray-400);flex-shrink:0}
+.sdot.ok{background:#22c55e}.sdot.err{background:var(--red-400)}.sdot.ld{background:var(--amber-400)}
+#stxt{font-size:11px;color:var(--text3)}
+
+/* ── 설정 패널 ── */
+.setup{background:var(--amber-50);border-bottom:1px solid var(--amber-400);padding:14px 18px;display:none;flex-shrink:0}
+.setup.show{display:block}
+.setup h3{font-size:12px;font-weight:600;color:var(--amber-600);margin-bottom:10px}
+.setup-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-bottom:10px}
+.setup-step{background:#fff;border-radius:var(--r);padding:10px 12px;border:1px solid #fde68a;font-size:11px;color:var(--text2);line-height:1.6}
+.setup-step b{color:var(--amber-600)}
+.inp-row{display:flex;gap:7px;align-items:center}
+.inp{flex:1;padding:6px 10px;border:1px solid var(--border2);border-radius:6px;font-size:12px;font-family:monospace;background:var(--bg)}
+
+/* ── 필터 바 ── */
+.fbar{padding:8px 18px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:5px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.fbtn{padding:3px 10px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--text2);transition:all .15s}
+.fbtn.on{background:var(--bg3);color:var(--text);border-color:var(--border2);font-weight:500}
+.fbtn.ctrl-on{background:var(--red-50);color:var(--red-600);border-color:var(--red-400)}
+.srch{padding:4px 9px;border:1px solid var(--border);border-radius:6px;font-size:11px;width:160px;background:var(--bg)}
+.srch:focus{outline:none;border-color:var(--blue-400)}
+.sep{width:1px;height:16px;background:var(--border);flex-shrink:0;margin:0 2px}
+.cbadge{font-size:10px;padding:2px 8px;border-radius:10px;cursor:pointer;border:1px solid;transition:all .15s;opacity:.5}
+.cbadge.on{opacity:1;font-weight:500}
+.cbadge.cn{background:var(--green-50);color:#27500a;border-color:#c0dd97}
+.cbadge.us{background:var(--red-50);color:#791f1f;border-color:#f09595}
+.cbadge.jp{background:var(--amber-50);color:#412402;border-color:#fac775}
+.cbadge.kr{background:var(--blue-50);color:#0c447c;border-color:var(--blue-200)}
+.lgd{display:flex;gap:8px;margin-left:auto}
+.li{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text3)}
+.ld{width:6px;height:6px;border-radius:50%}
+
+/* ── 메인 3열 ── */
+.main{display:grid;grid-template-columns:172px 1fr 4px 420px;flex:1;overflow:hidden;min-height:0}
+
+/* ── 공정 열 ── */
+.proc-col{border-right:1px solid var(--border);padding:12px 10px 12px 12px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.phase-label{font-size:10px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;padding:4px 2px 2px;margin-top:4px}
+.phase-label:first-child{margin-top:0}
+.proc-line{width:1px;height:5px;background:var(--border);margin-left:14px}
+.proc-btn{width:100%;border:none;text-align:left;cursor:pointer;background:none;padding:0;display:block}
+.proc-box{border-radius:var(--rl);padding:8px 12px 8px 10px;background:var(--bg);border:1px solid var(--border);position:relative;transition:all .15s;overflow:hidden}
+.proc-box::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.proc-box.front::before{background:var(--blue-400)}
+.proc-box.back::before{background:var(--green-400)}
+.proc-box:hover{border-color:var(--border2);background:var(--bg2)}
+.proc-box.sel.front{background:var(--blue-50);border-color:var(--blue-400)}
+.proc-box.sel.back{background:var(--green-50);border-color:var(--green-400)}
+.pname{font-size:12px;font-weight:500;color:var(--text);padding-left:7px}
+.pmeta{font-size:10px;color:var(--text3);padding-left:7px;margin-top:1px}
+
+/* ── 품목 열 ── */
+.mat-col{padding:12px 14px;overflow-y:auto}
+.mat-hdr{font-size:12px;font-weight:500;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+.mat-hdot{width:7px;height:7px;border-radius:50%}
+.mat-empty{display:flex;align-items:center;justify-content:center;height:180px;color:var(--text3);font-size:12px;text-align:center;line-height:2}
+.mat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:7px}
+
+/* 품목 카드 */
+.mat-card{border-radius:var(--r);padding:10px 11px;background:var(--bg2);border:1px solid var(--border);cursor:pointer;transition:all .15s;position:relative;padding-top:13px}
+.mat-card:hover{background:var(--bg);border-color:var(--border2)}
+.mat-card.sel{background:var(--bg);border-color:var(--blue-400);box-shadow:0 0 0 2px #378add22}
+.ctrl-strip{position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
+.mname{font-size:12px;font-weight:500;color:var(--text);line-height:1.3;margin-bottom:3px}
+.mhs{font-size:10px;color:var(--text3);font-family:monospace}
+.mdots{display:flex;gap:3px;margin-top:5px}
+.mdot{width:5px;height:5px;border-radius:50%}
+
+/* ── 상세 패널 ── */
+.det-col{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.resize-handle{width:4px;background:transparent;cursor:col-resize;flex-shrink:0;transition:background .15s;position:relative;z-index:10}
+.resize-handle:hover,.resize-handle.dragging{background:var(--blue-400)}
+.det-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text3);font-size:12px;text-align:center;gap:8px;padding:24px;line-height:1.8}
+.det-hdr{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg)}
+.det-cats{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px}
+.dcat{font-size:10px;padding:1px 7px;border-radius:4px;border:1px solid var(--border);background:var(--bg2);color:var(--text3)}
+.det-name{font-size:14px;font-weight:600;margin-bottom:2px;line-height:1.3}
+.det-hs{font-size:10px;color:var(--text3);font-family:monospace;margin-bottom:5px}
+.det-badges{display:flex;gap:4px;flex-wrap:wrap}
+.badge{font-size:10px;padding:2px 7px;border-radius:5px;border:1px solid}
+.badge-us{background:var(--red-50);color:var(--red-600);border-color:#f09595}
+.badge-jp{background:var(--amber-50);color:var(--amber-600);border-color:#fac775}
+.badge-cn{background:var(--green-50);color:var(--green-600);border-color:#c0dd97}
+.badge-none{background:var(--bg2);color:var(--text3);border-color:var(--border)}
+
+/* 탭 */
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);overflow-x:auto;flex-shrink:0}
+.tab{padding:7px 12px;font-size:11px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;flex-shrink:0}
+.tab.on{color:var(--text);border-bottom-color:var(--text);font-weight:500;background:var(--bg)}
+.tbody{padding:12px 14px;overflow-y:auto;display:none;flex:1}
+.tbody.on{display:block}
+
+/* 탭 공통 컴포넌트 */
+.field{display:grid;grid-template-columns:68px 1fr;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px}
+.field:last-child{border-bottom:none}
+.fl{color:var(--text2);padding-top:1px;line-height:1.5}
+.fv{color:var(--text);line-height:1.6}
+.sec{font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin:12px 0 6px}
+.sec:first-child{margin-top:0}
+.ctrl-card{padding:8px 10px;border-radius:var(--r);border:1px solid var(--border);margin-bottom:5px;font-size:11px;border-left:3px solid}
+.ctrl-card.us{border-left-color:var(--red-400);background:var(--red-50)}
+.ctrl-card.jp{border-left-color:var(--amber-400);background:var(--amber-50)}
+.ctrl-card.cn{border-left-color:var(--green-400);background:var(--green-50)}
+.ctrl-head{font-weight:500;margin-bottom:2px}
+.ctrl-body{color:var(--text2);line-height:1.5}
+.ctrl-date{font-size:10px;color:var(--text3);margin-top:3px}
+.ctrl-link a{font-size:10px;color:var(--blue-600)}
+.stat-g{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px}
+.stat{background:var(--bg2);border-radius:var(--r);padding:7px 9px}
+.slabel{font-size:10px;color:var(--text3);margin-bottom:2px}
+.sval{font-size:13px;font-weight:500}
+.vc-wrap{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.vc-n{font-size:10px;padding:3px 7px;border-radius:4px;background:var(--bg2);border:1px solid var(--border2);line-height:1.4}
+.vc-a{color:var(--text3);font-size:10px}
+
+/* 기업 탭 */
+.co-list{display:flex;flex-direction:column;gap:6px}
+.co-chip-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.co-chip{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:4px}
+.co-chip:hover{filter:brightness(.95)}
+.co-chip.sel{outline:2px solid var(--border2);outline-offset:1px}
+.chip-kr{background:var(--teal-50);color:#085041;border-color:#9fe1cb}
+.chip-jp{background:var(--amber-50);color:#633806;border-color:#fac775}
+.chip-us{background:var(--blue-50);color:var(--blue-600);border-color:var(--blue-200)}
+.chip-cn{background:var(--red-50);color:var(--red-600);border-color:#f09595}
+.chip-de,.chip-be,.chip-fr,.chip-at{background:var(--gray-50);color:var(--gray-600);border-color:var(--gray-200)}
+.nat-dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.7}
+
+.co-detail{border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;display:none}
+.co-detail.show{display:block}
+.co-dhead{padding:10px 12px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.co-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0}
+.co-dname{font-size:13px;font-weight:500}
+.co-dsub{font-size:10px;color:var(--text3);margin-top:1px}
+.co-dbody{padding:10px 12px}
+.contact-g{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px}
+.ci{background:var(--bg2);border-radius:var(--r);padding:7px 9px}
+.ci-label{font-size:9px;color:var(--text3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em}
+.ci-val{font-size:11px;font-weight:500;color:var(--text)}
+.ci-val a{color:var(--text);text-decoration:none}
+.ci-val a:hover{color:var(--blue-600);text-decoration:underline}
+.memo-list{display:flex;flex-direction:column;gap:5px}
+.memo{border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;background:var(--bg)}
+.memo-top{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.memo-date{font-size:10px;color:var(--text3);font-family:monospace}
+.memo-type{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:500}
+.mtype-call{background:var(--blue-50);color:var(--blue-600)}
+.mtype-meet{background:var(--green-50);color:var(--green-600)}
+.mtype-mail{background:var(--amber-50);color:var(--amber-600)}
+.mtype-video{background:var(--purple-50);color:var(--purple-600)}
+.memo-body{font-size:11px;color:var(--text);line-height:1.6}
+.memo-action{font-size:10px;color:var(--blue-600);margin-top:3px;display:flex;align-items:center;gap:3px}
+.memo-done{font-size:10px;padding:1px 5px;border-radius:3px}
+.done-y{background:var(--green-50);color:var(--green-600)}
+.done-n{background:var(--amber-50);color:var(--amber-600)}
+.recent-note{background:var(--purple-50);border:1px solid #afa9ec;border-radius:var(--r);padding:8px 10px;font-size:11px;color:var(--purple-600);margin-bottom:8px;line-height:1.6}
+.recent-note-label{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;color:var(--purple-400)}
+.status-tag{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:500}
+.st-active{background:var(--green-50);color:var(--green-600)}
+.st-watch{background:var(--amber-50);color:var(--amber-600)}
+.st-review{background:var(--blue-50);color:var(--blue-600)}
+.st-stop{background:var(--red-50);color:var(--red-600)}
+.empty-note{font-size:11px;color:var(--text3);text-align:center;padding:16px 0}
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="hdr">
+  <div class="hdr-logo">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+  </div>
+  <div>
+    <div class="hdr-title">반도체 소부장 공급망 맵</div>
+    <div class="hdr-sub">공정 · 소재 · 수출통제 · 기업 · 커뮤니케이션</div>
+  </div>
+  <div class="hdr-r">
+    <span class="sdot" id="sdot"></span>
+    <span id="stxt">미연결</span>
+    <button class="hbtn" onclick="toggleSetup()">⚙ Sheets 연결</button>
+    <button class="hbtn" onclick="reloadData()">↻ 새로고침</button>
+  </div>
+</div>
+
+<!-- 설정 -->
+<div class="setup" id="setup">
+  <h3>Google Sheets 연결 설정</h3>
+  <div class="setup-grid">
+    <div class="setup-step"><b>1단계</b> 구글 시트 → 공유 → <b>링크 있는 모든 사용자(뷰어)</b></div>
+    <div class="setup-step"><b>2단계</b> URL의 <code>/d/</code> 뒤 문자열 = <b>Spreadsheet ID</b></div>
+    <div class="setup-step"><b>3단계</b> 아래 ID 입력 후 <b>연결</b> 클릭</div>
+    <div class="setup-step"><b>시트명</b> 템플릿 v7 기준. 시트명 변경 시 코드 내 SHEETS 수정 필요</div>
+  </div>
+  <div class="inp-row">
+    <input class="inp" id="sid" placeholder="Spreadsheet ID">
+    <input class="inp" id="akey" placeholder="API Key (선택)" style="max-width:200px">
+    <button class="hbtn pri" onclick="saveConn()">연결</button>
+  </div>
+</div>
+
+<!-- 필터 -->
+<div class="fbar">
+  <button class="fbtn on" onclick="setPhase('all',this)">전체</button>
+  <button class="fbtn" onclick="setPhase('전공정',this)">전공정</button>
+  <button class="fbtn" onclick="setPhase('후공정',this)">후공정</button>
+  <button class="fbtn" id="cbtn" onclick="toggleCtrl()">수출통제만</button>
+  <input class="srch" id="srch" placeholder="품목 검색..." oninput="onSearch(this.value)">
+  <div class="sep"></div>
+  <span style="font-size:10px;color:var(--text3)">카테고리:</span>
+  <span class="cbadge cn on" onclick="toggleCat('CN_MINERAL',this)">핵심광물</span>
+  <span class="cbadge cn on" onclick="toggleCat('CN_RARE',this)">희토류</span>
+  <span class="cbadge us on" onclick="toggleCat('US_SEMICON',this)">EAR반도체</span>
+  <span class="cbadge us on" onclick="toggleCat('US_CHEM',this)">EAR화학</span>
+  <span class="cbadge jp on" onclick="toggleCat('JP_SEMICON',this)">외환법</span>
+  <span class="cbadge kr on" onclick="toggleCat('KR_SUPPLY',this)">공급망안전</span>
+  <button class="hbtn" style="font-size:10px;padding:2px 8px" onclick="clearCats()">초기화</button>
+  <div class="lgd">
+    <div class="li"><div class="ld" style="background:var(--blue-400)"></div>전공정</div>
+    <div class="li"><div class="ld" style="background:var(--green-400)"></div>후공정</div>
+    <div class="li"><div class="ld" style="background:var(--red-400)"></div>미국</div>
+    <div class="li"><div class="ld" style="background:var(--amber-400)"></div>일본</div>
+    <div class="li"><div class="ld" style="background:var(--green-600)"></div>중국</div>
+  </div>
+</div>
+
+<!-- 메인 -->
+<div class="main" id="main-grid">
+  <div class="proc-col" id="proc-col"></div>
+  <div class="mat-col" id="mat-col"><div class="mat-empty">← 공정을 선택하세요</div></div>
+  <div class="resize-handle" id="resize-handle"></div>
+  <div class="det-col" id="det-col">
+    <div class="det-empty">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      품목을 클릭하면<br>상세 정보가 표시됩니다
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 설정 ─────────────────────────────────────────
+const SK='sbj_v4c';
+// ── Sheets ID 직접 설정 (자동 연결) ──
+if(!localStorage.getItem(SK)){
+  localStorage.setItem(SK, JSON.stringify({
+    sheetId:'1qdvWFln2-gIXTDJJMpwD2HMm5UaZ1nYu',
+    apiKey:''
+  }));
+}
+let CFG=JSON.parse(localStorage.getItem(SK)||'{}');
+
+// v7 템플릿 시트명
+const SHEETS={
+  items:'03_품목기본정보',
+  ctrl:'01_수출통제_현황',
+  trade:'04_무역통계',
+  company:'06_기업마스터',
+  comm:'07_커뮤니케이션',
+  hist:'02_수출통제_히스토리',
+};
+
+// ── 공정 정의 ─────────────────────────────────────
+const PROCS=[
+  {id:'웨이퍼',name:'실리콘 웨이퍼',phase:'전공정'},
+  {id:'노광',name:'노광 (Litho)',phase:'전공정'},
+  {id:'식각',name:'식각 (Etch)',phase:'전공정'},
+  {id:'증착',name:'증착 (CVD/ALD)',phase:'전공정'},
+  {id:'확산',name:'확산',phase:'전공정'},
+  {id:'이온주입',name:'이온주입',phase:'전공정'},
+  {id:'연마',name:'연마 (CMP)',phase:'전공정'},
+  {id:'금속배선',name:'금속배선',phase:'전공정'},
+  {id:'세정',name:'세정',phase:'전공정'},
+  {id:'패키징',name:'패키징',phase:'후공정'},
+];
+
+const PROC_MAP={
+  '기판':['웨이퍼'],'웨이퍼':['웨이퍼'],
+  '노광':['노광'],'litho':['노광'],'photo':['노광'],
+  '식각':['식각'],'etch':['식각'],
+  '증착':['증착'],'cvd':['증착'],'ald':['증착'],'pvd':['증착'],
+  '확산':['확산'],'diffusion':['확산'],'산화':['확산'],
+  '이온주입':['이온주입'],'ion':['이온주입'],'도핑':['이온주입'],
+  '연마':['연마'],'cmp':['연마'],
+  '금속배선':['금속배선'],'배선':['금속배선'],
+  '세정':['세정'],'cleaning':['세정'],'wet':['세정'],
+  '패키징':['패키징'],'package':['패키징'],'봉지':['패키징'],
+};
+
+// ── 상태 ──────────────────────────────────────────
+let DB={items:[],ctrl:[],trade:[],company:[],comm:[]};
+let phase='all',ctrlOnly=false,srchQ='',selProc=null,selItem=null;
+let activeCats=new Set(['CN_MINERAL','CN_RARE','US_SEMICON','US_CHEM','JP_SEMICON','KR_SUPPLY']);
+
+// ── Sheets 연동 ───────────────────────────────────
+function gviz(sheet){
+  const enc=encodeURIComponent(sheet);
+  const key=CFG.apiKey?`&key=${CFG.apiKey}`:'';
+  return `https://docs.google.com/spreadsheets/d/${CFG.sheetId}/gviz/tq?tqx=out:json&sheet=${enc}${key}`;
+}
+async function fetchSheet(name){
+  const r=await fetch(gviz(name));
+  if(!r.ok) throw new Error(r.status);
+  const t=await r.text();
+  const j=JSON.parse(t.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+  if(!j.table||!j.table.rows||j.table.rows.length===0) return [];
+
+  const rawRows=j.table.rows;
+  const parsedHeaders=j.table.parsedNumHeaders||0;
+  let cols=[];
+  let dataRows=rawRows;
+
+  if(parsedHeaders>=1){
+    // Sheets가 헤더를 인식한 경우 — label 그대로 사용
+    cols=j.table.cols.map(c=>(c.label||'').trim());
+    dataRows=rawRows;
+  } else {
+    // parsedNumHeaders:0 — 행에서 헤더 직접 찾기
+    const KEYS=['품목ID','기업ID','날짜','발표일','구분','No','지역','단위','출처',
+                '국가','품목명','HSK','분류','통제 내용','유형','기업명','국적'];
+    let hi=-1;
+    for(let i=0;i<Math.min(rawRows.length,8);i++){
+      const vals=(rawRows[i].c||[]).map(c=>String(c&&c.v!=null?c.v:''));
+      if(vals.some(v=>v.includes('*')||KEYS.includes(v))){hi=i;break;}
+    }
+    if(hi>=0){
+      cols=(rawRows[hi].c||[]).map(c=>String(c&&c.v!=null?c.v:'').trim());
+      dataRows=rawRows.slice(hi+1);
+    } else {
+      cols=j.table.cols.map(c=>c.label||c.id||'');
+    }
+  }
+
+  const SKIP=['──','※','새 규제','새 기업','새 품목','수출액   (단위','수입액   (단위','구분'];
+  return dataRows
+    .map(row=>{
+      const o={};
+      cols.forEach((col,i)=>{
+        if(col){
+          const cell=(row.c||[])[i];
+          o[String(col)]=cell&&cell.v!=null?cell.v:'';
+        }
+      });
+      return o;
+    })
+    .filter(row=>{
+      const vals=Object.values(row);
+      if(vals.every(v=>v===''||v===null||v===undefined)) return false;
+      const first=String(Object.values(row)[0]||'').trim();
+      if(!first) return false;
+      return !SKIP.some(s=>first.startsWith(s));
+    });
+}
+
+
