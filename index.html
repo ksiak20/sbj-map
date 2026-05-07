@@ -273,7 +273,7 @@ body{font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;ba
 
 <script>
 // ── 설정 ─────────────────────────────────────────
-const SK='sbj_v4d';
+const SK='sbj_v4e';
 if(!localStorage.getItem(SK)){
   localStorage.setItem(SK,JSON.stringify({sheetId:'1qdvWFln2-gIXTDJJMpwD2HMm5UaZ1nYu',apiKey:''}));
 }
@@ -333,16 +333,13 @@ async function fetchSheet(name){
   const t=await r.text();
   const j=JSON.parse(t.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
   if(!j.table||!j.table.rows||j.table.rows.length===0) return [];
-
   const rawRows=j.table.rows;
-  const parsedHeaders=j.table.parsedNumHeaders||0;
+  const parsedH=j.table.parsedNumHeaders||0;
   let cols=[],dataRows=rawRows;
-
-  if(parsedHeaders>=1){
+  if(parsedH>=1){
     cols=j.table.cols.map(c=>(c.label||'').trim());
   } else {
-    const KEYS=['품목ID','기업ID','날짜','발표일','구분','No','지역','단위','출처',
-                '국가','품목명','HSK','분류','통제 내용','유형','기업명','국적'];
+    const KEYS=['품목ID','기업ID','날짜','발표일','구분','No','지역','단위','출처','국가','품목명','HSK','분류','유형','기업명','국적'];
     let hi=-1;
     for(let i=0;i<Math.min(rawRows.length,8);i++){
       const vals=(rawRows[i].c||[]).map(c=>String(c&&c.v!=null?c.v:''));
@@ -351,24 +348,34 @@ async function fetchSheet(name){
     if(hi>=0){cols=(rawRows[hi].c||[]).map(c=>String(c&&c.v!=null?c.v:'').trim());dataRows=rawRows.slice(hi+1);}
     else cols=j.table.cols.map(c=>c.label||c.id||'');
   }
-
   const SKIP=['──','※','새 규제','새 기업','새 품목'];
   return dataRows.map(row=>{
     const o={};
-    cols.forEach((col,i)=>{
-      if(col){const cell=(row.c||[])[i];o[String(col)]=cell&&cell.v!=null?cell.v:'';}
-    });
+    cols.forEach((col,i)=>{if(col){const cell=(row.c||[])[i];o[String(col)]=cell&&cell.v!=null?cell.v:'';}});
     return o;
   }).filter(row=>{
     const vals=Object.values(row);
     if(vals.every(v=>v===''||v===null||v===undefined)) return false;
     const first=String(Object.values(row)[0]||'').trim();
-    if(!first) return false;
-    return !SKIP.some(s=>first.startsWith(s));
+    return first && !SKIP.some(s=>first.startsWith(s));
   });
 }
 
-
+async function reloadData(){
+  if(!CFG.sheetId){setS('err','Sheets ID 미설정');return;}
+  setS('ld','불러오는 중...');
+  try{
+    const loads=await Promise.allSettled([
+      fetchSheet(SHEETS.items),fetchSheet(SHEETS.ctrl),
+      fetchSheet(SHEETS.trade),fetchSheet(SHEETS.company),
+      fetchSheet(SHEETS.comm),fetchSheet(SHEETS.hist),
+    ]);
+    const [items,ctrl,trade,company,comm,hist]=loads.map(r=>r.status==='fulfilled'?r.value:[]);
+    DB={items,ctrl,trade,company,comm,hist};
+    setS('ok',`${items.length}개 품목 · ${company.length}개 기업`);
+    render();
+  }catch(e){setS('err','로드 실패 — 공유 설정 확인');console.error(e);}
+}
 function setS(type,msg){
   document.getElementById('sdot').className='sdot'+(type==='ok'?' ok':type==='err'?' err':type==='ld'?' ld':'');
   document.getElementById('stxt').textContent=msg;
@@ -423,15 +430,9 @@ function getHistories(id){
     return rel.split(',').map(s=>s.trim()).includes(id);
   });
 }
-function getTradeRows(id){
-  return (DB.trade||[]).filter(r=>String(gf(r,'품목ID*','품목ID')).trim()===id.trim());
-}
-function getTradeByDiv(id,div){
-  return getTradeRows(id).filter(r=>gf(r,'구분*','구분')===div&&gf(r,'지역')==='전세계')[0]||null;
-}
-function getTradeByRegion(id,div){
-  return getTradeRows(id).filter(r=>gf(r,'구분*','구분')===div&&gf(r,'지역')!=='전세계');
-}
+function getTradeRows(id){return (DB.trade||[]).filter(r=>String(gf(r,'품목ID*','품목ID')).trim()===id.trim());}
+function getTradeByDiv(id,div){return getTradeRows(id).filter(r=>gf(r,'구분*','구분')===div&&gf(r,'지역')==='전세계')[0]||null;}
+function getTradeByRegion(id,div){return getTradeRows(id).filter(r=>gf(r,'구분*','구분')===div&&gf(r,'지역')!=='전세계');}
 // 히스토리에서 관련품목ID로 매칭
 function getHistories(id){
   return (DB.hist||[]).filter(r=>{
@@ -618,51 +619,39 @@ function showDetail(itemId){
   // 히스토리
   const histories=getHistories(id);
   const histHtml=histories.length?'<div class="sec" style="margin-top:10px">중국 수출통제 히스토리</div>'+
-    histories.sort(function(a,b){return String(gf(b,'발표일')).localeCompare(String(gf(a,'발표일')));}).map(function(h){
-      var stat=gf(h,'시행현황');
-      var statBg={'시행중':'#E8F5E9','종료':'#FFEBEE','중단':'#FFF3E0','예정':'#E3F2FD'}[stat]||'#F5F5F5';
-      var statFg={'시행중':'#1B5E20','종료':'#B71C1C','중단':'#E65100','예정':'#1565C0'}[stat]||'#757575';
+    histories.sort((a,b)=>String(gf(b,'발표일')).localeCompare(String(gf(a,'발표일')))).map(h=>{
+      const stat=gf(h,'시행현황');
+      const sBg={'시행중':'#E8F5E9','종료':'#FFEBEE','중단':'#FFF3E0','예정':'#E3F2FD'}[stat]||'#F5F5F5';
+      const sFg={'시행중':'#1B5E20','종료':'#B71C1C','중단':'#E65100','예정':'#1565C0'}[stat]||'#757575';
       return '<div class="ctrl-card cn" style="margin-bottom:5px">'
         +'<div class="ctrl-head" style="display:flex;justify-content:space-between;align-items:center">'
-        +'<span>'+gf(h,'분류*','분류')+'  '+gf(h,'공고번호')+'</span>'
-        +(stat?'<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:'+statBg+';color:'+statFg+';font-weight:600">'+stat+'</span>':'')
-        +'</div>'
-        +'<div class="ctrl-body">'+gf(h,'통제 내용')+'</div>'
-        +'<div class="ctrl-date">발표: '+(gf(h,'발표일')||'—')+' / 시행: '+(gf(h,'시행일')||'—')+'</div>'
-        +'</div>';
+        +'<span>'+gf(h,'분류*','분류')+'&nbsp;&nbsp;'+gf(h,'공고번호')+'</span>'
+        +(stat?'<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:'+sBg+';color:'+sFg+';font-weight:600">'+stat+'</span>':'')
+        +'</div><div class="ctrl-body">'+gf(h,'통제 내용')+'</div>'
+        +'<div class="ctrl-date">발표: '+(gf(h,'발표일')||'—')+' / 시행: '+(gf(h,'시행일')||'—')+'</div></div>';
     }).join(''):'';
-
   // 무역통계
   const imp=getTradeByDiv(id,'수입액');
   const exp=getTradeByDiv(id,'수출액');
   const impR=getTradeByRegion(id,'수입액');
   const expR=getTradeByRegion(id,'수출액');
-  const YEARS=['2022','2023','2024','2025'];
-  function mkRow(d,label,unit){
-    if(!d) return '';
-    const vs=YEARS.map(y=>{const v=d['금액_'+y];return(v!==undefined&&v!==''&&v!==null&&v!==0)?Number(v).toLocaleString():'—';});
-    return '<tr><td style="color:var(--text2);font-size:10px;padding:4px 6px;font-weight:500">'+label+'</td>'
+  const YRS=['2022','2023','2024','2025'];
+  const mkR=(d,lbl,unit)=>{if(!d)return '';
+    const vs=YRS.map(y=>{const v=d['금액_'+y];return(v!==undefined&&v!==''&&v!==null&&v!==0)?Number(v).toLocaleString():'—';});
+    return '<tr><td style="color:var(--text2);font-size:10px;padding:4px 6px;font-weight:500">'+lbl+'</td>'
       +vs.map(v=>'<td style="text-align:right;padding:4px 6px;font-size:11px;font-weight:500">'+v+'</td>').join('')
-      +'<td style="color:var(--text3);font-size:10px;padding:4px 6px">'+unit+'</td></tr>';
-  }
-  function mkRegions(regions){
-    if(!regions||!regions.length) return '';
-    return regions.map(function(r){
-      var region=gf(r,'지역');
-      var ps=YEARS.map(function(y){
-        var v=r['비중_'+y];
-        if(v===undefined||v===''||v===null) return '—';
-        var n=parseFloat(v);return isNaN(n)?'—':Math.round(n*100)+'%';
-      });
-      return '<tr style="font-size:10px"><td style="color:var(--text2);padding:3px 6px;padding-left:16px">∟ '+region+'</td>'
-        +ps.map(function(p){return '<td style="text-align:right;padding:3px 6px;color:var(--text3)">'+p+'</td>';}).join('')+'<td></td></tr>';
-    }).join('');
-  }
+      +'<td style="color:var(--text3);font-size:10px;padding:4px 6px">'+unit+'</td></tr>';};
+  const mkReg=regions=>regions.map(r=>{
+    const rg=gf(r,'지역');
+    const ps=YRS.map(y=>{const v=r['비중_'+y];if(v===undefined||v===''||v===null)return '—';const n=parseFloat(v);return isNaN(n)?'—':Math.round(n*100)+'%';});
+    return '<tr style="font-size:10px"><td style="color:var(--text2);padding:3px 6px;padding-left:16px">∟ '+rg+'</td>'
+      +ps.map(p=>'<td style="text-align:right;padding:3px 6px;color:var(--text3)">'+p+'</td>').join('')+'<td></td></tr>';
+  }).join('');
   const ts='width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px';
   const ths='text-align:right;padding:3px 6px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)';
   const yh='<tr><th style="text-align:left;padding:3px 6px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)"></th>'
-    +YEARS.map(function(y){return'<th style="'+ths+'">'+y+'</th>';}).join('')+'<th style="'+ths+'">단위</th></tr>';
-  const tradeHtml=(imp||exp)?`<table style="${ts}">${yh}${mkRow(imp,'수입액 (전세계)',gf(imp,'단위'))}${mkRegions(impR)}${mkRow(exp,'수출액 (전세계)',gf(exp,'단위'))}${mkRegions(expR)}</table>`:'<div class="empty-note">무역통계 데이터 없음</div>';
+    +YRS.map(y=>'<th style="'+ths+'">'+y+'</th>').join('')+'<th style="'+ths+'">단위</th></tr>';
+  const tradeHtml=(imp||exp)?`<table style="${ts}">${yh}${mkR(imp,'수입액 (전세계)',gf(imp,'단위'))}${mkReg(impR)}${mkR(exp,'수출액 (전세계)',gf(exp,'단위'))}${mkReg(expR)}</table>`:'<div class="empty-note">무역통계 데이터 없음</div>';
 
   // 공급기업 탭 — 기업마스터 연동
   const natCls=nat=>{
