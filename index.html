@@ -273,9 +273,9 @@ body{font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;ba
 
 <script>
 // ── 설정 ─────────────────────────────────────────
-const SK='sbj_v4e';
+const SK='sbj_v4f';
 if(!localStorage.getItem(SK)){
-  localStorage.setItem(SK,JSON.stringify({sheetId:'1qdvWFln2-gIXTDJJMpwD2HMm5UaZ1nYu',apiKey:''}));
+  localStorage.setItem(SK,JSON.stringify({sheetId:'1qdvWFln2-gIXTDJJMpwD2HMm5UaZ1nYu',apiKey:'AIzaSyC9_V4VHI5Z8SEzVC0XJmOEuZcniFs5oRw'}));
 }
 let CFG=JSON.parse(localStorage.getItem(SK)||'{}');
 
@@ -323,35 +323,27 @@ let activeCats=new Set(['CN_MINERAL','CN_RARE','US_SEMICON','US_CHEM','JP_SEMICO
 
 // ── Sheets 연동 ───────────────────────────────────
 function gviz(sheet){
+  // 공식 Sheets API v4 사용
   const enc=encodeURIComponent(sheet);
-  const key=CFG.apiKey?`&key=${CFG.apiKey}`:'';
-  return `https://docs.google.com/spreadsheets/d/${CFG.sheetId}/gviz/tq?tqx=out:json&sheet=${enc}${key}`;
+  return `https://sheets.googleapis.com/v4/spreadsheets/${CFG.sheetId}/values/${enc}?key=${CFG.apiKey}`;
 }
 async function fetchSheet(name){
-  const r=await fetch(gviz(name));
-  if(!r.ok) throw new Error(r.status);
-  const t=await r.text();
-  const j=JSON.parse(t.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
-  if(!j.table||!j.table.rows||j.table.rows.length===0) return [];
-  const rawRows=j.table.rows;
-  const parsedH=j.table.parsedNumHeaders||0;
-  let cols=[],dataRows=rawRows;
-  if(parsedH>=1){
-    cols=j.table.cols.map(c=>(c.label||'').trim());
-  } else {
-    const KEYS=['품목ID','기업ID','날짜','발표일','구분','No','지역','단위','출처','국가','품목명','HSK','분류','유형','기업명','국적'];
-    let hi=-1;
-    for(let i=0;i<Math.min(rawRows.length,8);i++){
-      const vals=(rawRows[i].c||[]).map(c=>String(c&&c.v!=null?c.v:''));
-      if(vals.some(v=>v.includes('*')||KEYS.includes(v))){hi=i;break;}
-    }
-    if(hi>=0){cols=(rawRows[hi].c||[]).map(c=>String(c&&c.v!=null?c.v:'').trim());dataRows=rawRows.slice(hi+1);}
-    else cols=j.table.cols.map(c=>c.label||c.id||'');
-  }
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${CFG.sheetId}/values/${encodeURIComponent(name)}?key=${CFG.apiKey}`;
+  const r=await fetch(url);
+  if(!r.ok) throw new Error(`${r.status} ${name}`);
+  const j=await r.json();
+  if(!j.values||j.values.length<2) return [];
+
+  // 첫 행 = 헤더, 나머지 = 데이터 (항상 안정적)
+  const headers=j.values[0];
+  const dataRows=j.values.slice(1);
+
   const SKIP=['──','※','새 규제','새 기업','새 품목'];
   return dataRows.map(row=>{
     const o={};
-    cols.forEach((col,i)=>{if(col){const cell=(row.c||[])[i];o[String(col)]=cell&&cell.v!=null?cell.v:'';}});
+    headers.forEach((col,i)=>{
+      if(col) o[String(col)]=row[i]!==undefined?row[i]:'';
+    });
     return o;
   }).filter(row=>{
     const vals=Object.values(row);
