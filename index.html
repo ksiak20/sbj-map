@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>반도체 소부장 공급망 맵 v4</title>
+<style>
+:root{
+  --blue-50:#E6F1FB;--blue-200:#85B7EB;--blue-400:#378ADD;--blue-600:#185FA5;--blue-800:#0C447C;
+  --green-50:#EAF3DE;--green-400:#639922;--green-600:#3B6D11;
+  --red-50:#FCEBEB;--red-400:#E24B4A;--red-600:#A32D2D;
+  --amber-50:#FAEEDA;--amber-400:#EF9F27;--amber-600:#854F0B;
+  --purple-50:#EEEDFE;--purple-400:#7F77DD;--purple-600:#534AB7;
+  --teal-50:#E1F5EE;--teal-400:#1D9E75;--teal-600:#0F6E56;
+  --gray-50:#F1EFE8;--gray-200:#B4B2A9;--gray-400:#888780;--gray-600:#5F5E5A;
+  --orange-50:#FBE9E7;--orange-400:#E65100;--orange-600:#BF360C;
+  --bg:#fff;--bg2:#F8F9FA;--bg3:#F1EFE8;
+  --text:#1a1a1a;--text2:#5F5E5A;--text3:#888780;
+  --border:#E2E0D8;--border2:#C8C6BE;
+  --r:8px;--rl:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--bg2);color:var(--text);font-size:13px;line-height:1.5;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── 헤더 ── */
+.hdr{background:var(--bg);border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.hdr-logo{width:28px;height:28px;background:var(--blue-600);border-radius:6px;display:flex;align-items:center;justify-content:center}
+.hdr-logo svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2}
+.hdr-title{font-size:14px;font-weight:600;color:var(--blue-600)}
+.hdr-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:7px}
+.hbtn{padding:5px 11px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid var(--border2);background:var(--bg);color:var(--text2);transition:all .15s;white-space:nowrap}
+.hbtn:hover{background:var(--bg2);border-color:var(--blue-400);color:var(--blue-600)}
+.hbtn.pri{background:var(--blue-600);color:#fff;border-color:var(--blue-600)}
+.hbtn.pri:hover{background:var(--blue-800)}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--gray-400);flex-shrink:0}
+.sdot.ok{background:#22c55e}.sdot.err{background:var(--red-400)}.sdot.ld{background:var(--amber-400)}
+#stxt{font-size:11px;color:var(--text3)}
+
+/* ── 설정 패널 ── */
+.setup{background:var(--amber-50);border-bottom:1px solid var(--amber-400);padding:14px 18px;display:none;flex-shrink:0}
+.setup.show{display:block}
+.setup h3{font-size:12px;font-weight:600;color:var(--amber-600);margin-bottom:10px}
+.setup-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-bottom:10px}
+.setup-step{background:#fff;border-radius:var(--r);padding:10px 12px;border:1px solid #fde68a;font-size:11px;color:var(--text2);line-height:1.6}
+.setup-step b{color:var(--amber-600)}
+.inp-row{display:flex;gap:7px;align-items:center}
+.inp{flex:1;padding:6px 10px;border:1px solid var(--border2);border-radius:6px;font-size:12px;font-family:monospace;background:var(--bg)}
+
+/* ── 필터 바 ── */
+.fbar{padding:8px 18px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:5px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.fbtn{padding:3px 10px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--text2);transition:all .15s}
+.fbtn.on{background:var(--bg3);color:var(--text);border-color:var(--border2);font-weight:500}
+.fbtn.ctrl-on{background:var(--red-50);color:var(--red-600);border-color:var(--red-400)}
+.srch{padding:4px 9px;border:1px solid var(--border);border-radius:6px;font-size:11px;width:160px;background:var(--bg)}
+.srch:focus{outline:none;border-color:var(--blue-400)}
+.sep{width:1px;height:16px;background:var(--border);flex-shrink:0;margin:0 2px}
+.cbadge{font-size:10px;padding:2px 8px;border-radius:10px;cursor:pointer;border:1px solid;transition:all .15s;opacity:.5}
+.cbadge.on{opacity:1;font-weight:500}
+.cbadge.cn{background:var(--green-50);color:#27500a;border-color:#c0dd97}
+.cbadge.us{background:var(--red-50);color:#791f1f;border-color:#f09595}
+.cbadge.jp{background:var(--amber-50);color:#412402;border-color:#fac775}
+.cbadge.kr{background:var(--blue-50);color:#0c447c;border-color:var(--blue-200)}
+.lgd{display:flex;gap:8px;margin-left:auto}
+.li{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text3)}
+.ld{width:6px;height:6px;border-radius:50%}
+
+/* ── 메인 3열 ── */
+.main{display:grid;grid-template-columns:172px 1fr 4px 420px;flex:1;overflow:hidden;min-height:0}
+
+/* ── 공정 열 ── */
+.proc-col{border-right:1px solid var(--border);padding:12px 10px 12px 12px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.phase-label{font-size:10px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;padding:4px 2px 2px;margin-top:4px}
+.phase-label:first-child{margin-top:0}
+.proc-line{width:1px;height:5px;background:var(--border);margin-left:14px}
+.proc-btn{width:100%;border:none;text-align:left;cursor:pointer;background:none;padding:0;display:block}
+.proc-box{border-radius:var(--rl);padding:8px 12px 8px 10px;background:var(--bg);border:1px solid var(--border);position:relative;transition:all .15s;overflow:hidden}
+.proc-box::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.proc-box.front::before{background:var(--blue-400)}
+.proc-box.back::before{background:var(--green-400)}
+.proc-box:hover{border-color:var(--border2);background:var(--bg2)}
+.proc-box.sel.front{background:var(--blue-50);border-color:var(--blue-400)}
+.proc-box.sel.back{background:var(--green-50);border-color:var(--green-400)}
+.pname{font-size:12px;font-weight:500;color:var(--text);padding-left:7px}
+.pmeta{font-size:10px;color:var(--text3);padding-left:7px;margin-top:1px}
+
+/* ── 품목 열 ── */
+.mat-col{padding:12px 14px;overflow-y:auto}
+.mat-hdr{font-size:12px;font-weight:500;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+.mat-hdot{width:7px;height:7px;border-radius:50%}
+.mat-empty{display:flex;align-items:center;justify-content:center;height:180px;color:var(--text3);font-size:12px;text-align:center;line-height:2}
+.mat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:7px}
+
+/* 품목 카드 */
+.mat-card{border-radius:var(--r);padding:10px 11px;background:var(--bg2);border:1px solid var(--border);cursor:pointer;transition:all .15s;position:relative;padding-top:13px}
+.mat-card:hover{background:var(--bg);border-color:var(--border2)}
+.mat-card.sel{background:var(--bg);border-color:var(--blue-400);box-shadow:0 0 0 2px #378add22}
+.ctrl-strip{position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
+.mname{font-size:12px;font-weight:500;color:var(--text);line-height:1.3;margin-bottom:3px}
+.mhs{font-size:10px;color:var(--text3);font-family:monospace}
+.mdots{display:flex;gap:3px;margin-top:5px}
+.mdot{width:5px;height:5px;border-radius:50%}
+
+/* ── 상세 패널 ── */
+.det-col{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.resize-handle{width:4px;background:transparent;cursor:col-resize;flex-shrink:0;transition:background .15s;position:relative;z-index:10}
+.resize-handle:hover,.resize-handle.dragging{background:var(--blue-400)}
+.det-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text3);font-size:12px;text-align:center;gap:8px;padding:24px;line-height:1.8}
+.det-hdr{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg)}
+.det-cats{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px}
+.dcat{font-size:10px;padding:1px 7px;border-radius:4px;border:1px solid var(--border);background:var(--bg2);color:var(--text3)}
+.det-name{font-size:14px;font-weight:600;margin-bottom:2px;line-height:1.3}
+.det-hs{font-size:10px;color:var(--text3);font-family:monospace;margin-bottom:5px}
+.det-badges{display:flex;gap:4px;flex-wrap:wrap}
+.badge{font-size:10px;padding:2px 7px;border-radius:5px;border:1px solid}
+.badge-us{background:var(--red-50);color:var(--red-600);border-color:#f09595}
+.badge-jp{background:var(--amber-50);color:var(--amber-600);border-color:#fac775}
+.badge-cn{background:var(--green-50);color:var(--green-600);border-color:#c0dd97}
+.badge-none{background:var(--bg2);color:var(--text3);border-color:var(--border)}
+
+/* 탭 */
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);overflow-x:auto;flex-shrink:0}
+.tab{padding:7px 12px;font-size:11px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;flex-shrink:0}
+.tab.on{color:var(--text);border-bottom-color:var(--text);font-weight:500;background:var(--bg)}
+.tbody{padding:12px 14px;overflow-y:auto;display:none;flex:1}
+.tbody.on{display:block}
+
+/* 탭 공통 컴포넌트 */
+.field{display:grid;grid-template-columns:68px 1fr;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px}
+.field:last-child{border-bottom:none}
+.fl{color:var(--text2);padding-top:1px;line-height:1.5}
+.fv{color:var(--text);line-height:1.6}
+.sec{font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin:12px 0 6px}
+.sec:first-child{margin-top:0}
+.ctrl-card{padding:8px 10px;border-radius:var(--r);border:1px solid var(--border);margin-bottom:5px;font-size:11px;border-left:3px solid}
+.ctrl-card.us{border-left-color:var(--red-400);background:var(--red-50)}
+.ctrl-card.jp{border-left-color:var(--amber-400);background:var(--amber-50)}
+.ctrl-card.cn{border-left-color:var(--green-400);background:var(--green-50)}
+.ctrl-head{font-weight:500;margin-bottom:2px}
+.ctrl-body{color:var(--text2);line-height:1.5}
+.ctrl-date{font-size:10px;color:var(--text3);margin-top:3px}
+.ctrl-link a{font-size:10px;color:var(--blue-600)}
+.stat-g{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px}
+.stat{background:var(--bg2);border-radius:var(--r);padding:7px 9px}
+.slabel{font-size:10px;color:var(--text3);margin-bottom:2px}
+.sval{font-size:13px;font-weight:500}
+.vc-wrap{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.vc-n{font-size:10px;padding:3px 7px;border-radius:4px;background:var(--bg2);border:1px solid var(--border2);line-height:1.4}
+.vc-a{color:var(--text3);font-size:10px}
+
+/* 기업 탭 */
+.co-list{display:flex;flex-direction:column;gap:6px}
+.co-chip-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.co-chip{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:4px}
+.co-chip:hover{filter:brightness(.95)}
+.co-chip.sel{outline:2px solid var(--border2);outline-offset:1px}
+.chip-kr{background:var(--teal-50);color:#085041;border-color:#9fe1cb}
+.chip-jp{background:var(--amber-50);color:#633806;border-color:#fac775}
+.chip-us{background:var(--blue-50);color:var(--blue-600);border-color:var(--blue-200)}
+.chip-cn{background:var(--red-50);color:var(--red-600);border-color:#f09595}
+.chip-de,.chip-be,.chip-fr,.chip-at{background:var(--gray-50);color:var(--gray-600);border-color:var(--gray-200)}
+.nat-dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.7}
+
+.co-detail{border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;display:none}
+.co-detail.show{display:block}
+.co-dhead{padding:10px 12px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.co-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0}
+.co-dname{font-size:13px;font-weight:500}
+.co-dsub{font-size:10px;color:var(--text3);margin-top:1px}
+.co-dbody{padding:10px 12px}
+.contact-g{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px}
+.ci{background:var(--bg2);border-radius:var(--r);padding:7px 9px}
+.ci-label{font-size:9px;color:var(--text3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em}
+.ci-val{font-size:11px;font-weight:500;color:var(--text)}
+.ci-val a{color:var(--text);text-decoration:none}
+.ci-val a:hover{color:var(--blue-600);text-decoration:underline}
+.memo-list{display:flex;flex-direction:column;gap:5px}
+.memo{border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;background:var(--bg)}
+.memo-top{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.memo-date{font-size:10px;color:var(--text3);font-family:monospace}
+.memo-type{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:500}
+.mtype-call{background:var(--blue-50);color:var(--blue-600)}
+.mtype-meet{background:var(--green-50);color:var(--green-600)}
+.mtype-mail{background:var(--amber-50);color:var(--amber-600)}
+.mtype-video{background:var(--purple-50);color:var(--purple-600)}
+.memo-body{font-size:11px;color:var(--text);line-height:1.6}
+.memo-action{font-size:10px;color:var(--blue-600);margin-top:3px;display:flex;align-items:center;gap:3px}
+.memo-done{font-size:10px;padding:1px 5px;border-radius:3px}
+.done-y{background:var(--green-50);color:var(--green-600)}
+.done-n{background:var(--amber-50);color:var(--amber-600)}
+.recent-note{background:var(--purple-50);border:1px solid #afa9ec;border-radius:var(--r);padding:8px 10px;font-size:11px;color:var(--purple-600);margin-bottom:8px;line-height:1.6}
+.recent-note-label{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;color:var(--purple-400)}
+.status-tag{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:500}
+.st-active{background:var(--green-50);color:var(--green-600)}
+.st-watch{background:var(--amber-50);color:var(--amber-600)}
+.st-review{background:var(--blue-50);color:var(--blue-600)}
+.st-stop{background:var(--red-50);color:var(--red-600)}
+.empty-note{font-size:11px;color:var(--text3);text-align:center;padding:16px 0}
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="hdr">
+  <div class="hdr-logo">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+  </div>
+  <div>
+    <div class="hdr-title">반도체 소부장 공급망 맵</div>
+    <div class="hdr-sub">공정 · 소재 · 수출통제 · 기업 · 커뮤니케이션</div>
+  </div>
+  <div class="hdr-r">
+    <span class="sdot" id="sdot"></span>
+    <span id="stxt">미연결</span>
+    <button class="hbtn" onclick="toggleSetup()">⚙ Sheets 연결</button>
+    <button class="hbtn" onclick="reloadData()">↻ 새로고침</button>
+  </div>
+</div>
+
+<!-- 설정 -->
+<div class="setup" id="setup">
+  <h3>Google Sheets 연결 설정</h3>
+  <div class="setup-grid">
+    <div class="setup-step"><b>1단계</b> 구글 시트 → 공유 → <b>링크 있는 모든 사용자(뷰어)</b></div>
+    <div class="setup-step"><b>2단계</b> URL의 <code>/d/</code> 뒤 문자열 = <b>Spreadsheet ID</b></div>
+    <div class="setup-step"><b>3단계</b> 아래 ID 입력 후 <b>연결</b> 클릭</div>
+    <div class="setup-step"><b>시트명</b> 템플릿 v7 기준. 시트명 변경 시 코드 내 SHEETS 수정 필요</div>
+  </div>
+  <div class="inp-row">
+    <input class="inp" id="sid" placeholder="Spreadsheet ID">
+    <input class="inp" id="akey" placeholder="API Key (선택)" style="max-width:200px">
+    <button class="hbtn pri" onclick="saveConn()">연결</button>
+  </div>
+</div>
+
+<!-- 필터 -->
+<div class="fbar">
+  <button class="fbtn on" onclick="setPhase('all',this)">전체</button>
+  <button class="fbtn" onclick="setPhase('전공정',this)">전공정</button>
+  <button class="fbtn" onclick="setPhase('후공정',this)">후공정</button>
+  <button class="fbtn" id="cbtn" onclick="toggleCtrl()">수출통제만</button>
+  <input class="srch" id="srch" placeholder="품목 검색..." oninput="onSearch(this.value)">
+  <div class="sep"></div>
+  <span style="font-size:10px;color:var(--text3)">카테고리:</span>
+  <span class="cbadge cn on" onclick="toggleCat('CN_MINERAL',this)">핵심광물</span>
+  <span class="cbadge cn on" onclick="toggleCat('CN_RARE',this)">희토류</span>
+  <span class="cbadge us on" onclick="toggleCat('US_SEMICON',this)">EAR반도체</span>
+  <span class="cbadge us on" onclick="toggleCat('US_CHEM',this)">EAR화학</span>
+  <span class="cbadge jp on" onclick="toggleCat('JP_SEMICON',this)">외환법</span>
+  <span class="cbadge kr on" onclick="toggleCat('KR_SUPPLY',this)">공급망안전</span>
+  <button class="hbtn" style="font-size:10px;padding:2px 8px" onclick="clearCats()">초기화</button>
+  <div class="lgd">
+    <div class="li"><div class="ld" style="background:var(--blue-400)"></div>전공정</div>
+    <div class="li"><div class="ld" style="background:var(--green-400)"></div>후공정</div>
+    <div class="li"><div class="ld" style="background:var(--red-400)"></div>미국</div>
+    <div class="li"><div class="ld" style="background:var(--amber-400)"></div>일본</div>
+    <div class="li"><div class="ld" style="background:var(--green-600)"></div>중국</div>
+  </div>
+</div>
+
+<!-- 메인 -->
+<div class="main" id="main-grid">
+  <div class="proc-col" id="proc-col"></div>
+  <div class="mat-col" id="mat-col"><div class="mat-empty">← 공정을 선택하세요</div></div>
+  <div class="resize-handle" id="resize-handle"></div>
+  <div class="det-col" id="det-col">
+    <div class="det-empty">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      품목을 클릭하면<br>상세 정보가 표시됩니다
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 설정 ─────────────────────────────────────────
+const SK='sbj_v4d';
+if(!localStorage.getItem(SK)){
+  localStorage.setItem(SK,JSON.stringify({sheetId:'1qdvWFln2-gIXTDJJMpwD2HMm5UaZ1nYu',apiKey:''}));
+}
+let CFG=JSON.parse(localStorage.getItem(SK)||'{}');
+
+// v7 템플릿 시트명
+const SHEETS={
+  items:'03_품목기본정보',
+  ctrl:'01_수출통제_현황',
+  trade:'04_무역통계',
+  company:'06_기업마스터',
+  comm:'07_커뮤니케이션',
+  hist:'02_수출통제_히스토리',
+};
+
+// ── 공정 정의 ─────────────────────────────────────
+const PROCS=[
+  {id:'웨이퍼',name:'실리콘 웨이퍼',phase:'전공정'},
+  {id:'노광',name:'노광 (Litho)',phase:'전공정'},
+  {id:'식각',name:'식각 (Etch)',phase:'전공정'},
+  {id:'증착',name:'증착 (CVD/ALD)',phase:'전공정'},
+  {id:'확산',name:'확산',phase:'전공정'},
+  {id:'이온주입',name:'이온주입',phase:'전공정'},
+  {id:'연마',name:'연마 (CMP)',phase:'전공정'},
+  {id:'금속배선',name:'금속배선',phase:'전공정'},
+  {id:'세정',name:'세정',phase:'전공정'},
+  {id:'패키징',name:'패키징',phase:'후공정'},
+];
+
+const PROC_MAP={
+  '기판':['웨이퍼'],'웨이퍼':['웨이퍼'],
+  '노광':['노광'],'litho':['노광'],'photo':['노광'],
+  '식각':['식각'],'etch':['식각'],
+  '증착':['증착'],'cvd':['증착'],'ald':['증착'],'pvd':['증착'],
+  '확산':['확산'],'diffusion':['확산'],'산화':['확산'],
+  '이온주입':['이온주입'],'ion':['이온주입'],'도핑':['이온주입'],
+  '연마':['연마'],'cmp':['연마'],
+  '금속배선':['금속배선'],'배선':['금속배선'],
+  '세정':['세정'],'cleaning':['세정'],'wet':['세정'],
+  '패키징':['패키징'],'package':['패키징'],'봉지':['패키징'],
+};
+
+// ── 상태 ──────────────────────────────────────────
+let DB={items:[],ctrl:[],trade:[],company:[],comm:[]};
+let phase='all',ctrlOnly=false,srchQ='',selProc=null,selItem=null;
+let activeCats=new Set(['CN_MINERAL','CN_RARE','US_SEMICON','US_CHEM','JP_SEMICON','KR_SUPPLY']);
+
+// ── Sheets 연동 ───────────────────────────────────
+function gviz(sheet){
+  const enc=encodeURIComponent(sheet);
+  const key=CFG.apiKey?`&key=${CFG.apiKey}`:'';
+  return `https://docs.google.com/spreadsheets/d/${CFG.sheetId}/gviz/tq?tqx=out:json&sheet=${enc}${key}`;
+}
+async function fetchSheet(name){
+  const r=await fetch(gviz(name));
+  if(!r.ok) throw new Error(r.status);
+  const t=await r.text();
+  const j=JSON.parse(t.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+  if(!j.table||!j.table.rows||j.table.rows.length===0) return [];
+
+  const rawRows=j.table.rows;
+  const parsedHeaders=j.table.parsedNumHeaders||0;
+  let cols=[],dataRows=rawRows;
+
+  if(parsedHeaders>=1){
+    cols=j.table.cols.map(c=>(c.label||'').trim());
+  } else {
+    const KEYS=['품목ID','기업ID','날짜','발표일','구분','No','지역','단위','출처',
+                '국가','품목명','HSK','분류','통제 내용','유형','기업명','국적'];
+    let hi=-1;
+    for(let i=0;i<Math.min(rawRows.length,8);i++){
+      const vals=(rawRows[i].c||[]).map(c=>String(c&&c.v!=null?c.v:''));
+      if(vals.some(v=>v.includes('*')||KEYS.includes(v))){hi=i;break;}
+    }
+    if(hi>=0){cols=(rawRows[hi].c||[]).map(c=>String(c&&c.v!=null?c.v:'').trim());dataRows=rawRows.slice(hi+1);}
+    else cols=j.table.cols.map(c=>c.label||c.id||'');
+  }
+
+  const SKIP=['──','※','새 규제','새 기업','새 품목'];
+  return dataRows.map(row=>{
+    const o={};
+    cols.forEach((col,i)=>{
+      if(col){const cell=(row.c||[])[i];o[String(col)]=cell&&cell.v!=null?cell.v:'';}
+    });
+    return o;
+  }).filter(row=>{
+    const vals=Object.values(row);
+    if(vals.every(v=>v===''||v===null||v===undefined)) return false;
+    const first=String(Object.values(row)[0]||'').trim();
+    if(!first) return false;
+    return !SKIP.some(s=>first.startsWith(s));
+  });
+}
+
+
+function setS(type,msg){
+  document.getElementById('sdot').className='sdot'+(type==='ok'?' ok':type==='err'?' err':type==='ld'?' ld':'');
+  document.getElementById('stxt').textContent=msg;
+}
+function toggleSetup(){
+  const p=document.getElementById('setup');
+  p.classList.toggle('show');
+  if(p.classList.contains('show')&&CFG.sheetId) document.getElementById('sid').value=CFG.sheetId;
+}
+function saveConn(){
+  const id=document.getElementById('sid').value.trim();
+  if(!id){alert('Spreadsheet ID를 입력하세요');return;}
+  CFG={sheetId:id,apiKey:document.getElementById('akey').value.trim()};
+  localStorage.setItem(SK,JSON.stringify(CFG));
+  document.getElementById('setup').classList.remove('show');
+  reloadData();
+}
+
+// ── 필터 ──────────────────────────────────────────
+function setPhase(p,btn){
+  phase=p;
+  document.querySelectorAll('.fbtn:not(#cbtn)').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  selItem=null; render(); if(selProc) showMats(selProc);
+}
+function toggleCtrl(){
+  ctrlOnly=!ctrlOnly;
+  document.getElementById('cbtn').classList.toggle('ctrl-on',ctrlOnly);
+  selItem=null; render(); if(selProc) showMats(selProc);
+}
+function onSearch(q){srchQ=q.toLowerCase();selItem=null;render();if(selProc)showMats(selProc);}
+function toggleCat(cat,btn){
+  activeCats.has(cat)?activeCats.delete(cat):activeCats.add(cat);
+  btn.classList.toggle('on',activeCats.has(cat));
+  selItem=null; if(selProc) showMats(selProc);
+}
+function clearCats(){
+  activeCats=new Set(['CN_MINERAL','CN_RARE','US_SEMICON','US_CHEM','JP_SEMICON','KR_SUPPLY']);
+  document.querySelectorAll('.cbadge').forEach(b=>b.classList.add('on'));
+  if(selProc) showMats(selProc);
+}
+
+// ── 데이터 헬퍼 ───────────────────────────────────
+const gf=(row,...keys)=>{for(const k of keys){const v=row[k];if(v!==undefined&&v!==null&&v!==''&&v!==0)return String(v);}return '';};
+function getId(item){return gf(item,'품목ID*','품목ID');}
+function getName(item){return gf(item,'품목명(한)*','품목명(한)','품목명');}
+// v8 컬럼명 매핑
+function getCtrls(id){return DB.ctrl.filter(r=>gf(r,'품목ID*','품목ID')===id);}
+function getHistories(id){
+  return (DB.hist||[]).filter(r=>{
+    const rel=gf(r,'관련품목ID*','관련품목ID','관련 품목');
+    return rel.split(',').map(s=>s.trim()).includes(id);
+  });
+}
+function getTradeRows(id){
+  return (DB.trade||[]).filter(r=>String(gf(r,'품목ID*','품목ID')).trim()===id.trim());
+}
+function getTradeByDiv(id,div){
+  return getTradeRows(id).filter(r=>gf(r,'구분*','구분')===div&&gf(r,'지역')==='전세계')[0]||null;
+}
+function getTradeByRegion(id,div){
+  return getTradeRows(id).filter(r=>gf(r,'구분*','구분')===div&&gf(r,'지역')!=='전세계');
+}
+// 히스토리에서 관련품목ID로 매칭
+function getHistories(id){
+  return (DB.hist||[]).filter(r=>{
+    const rel=gf(r,'관련품목ID*','관련품목ID','관련 품목');
+    return rel.split(',').map(s=>s.trim()).includes(id);
+  });
+}
+function getTradeRows(id){
+  return DB.trade.filter(r=>gf(r,'품목ID*','품목ID').trim()===id.trim())
+    .sort((a,b)=>Number(gf(b,'연도*','연도')||0)-Number(gf(a,'연도*','연도')||0));
+}
+
+// 기업마스터에서 특정 품목을 공급하는 기업 찾기
+function getCompaniesForItem(itemId){
+  return DB.company.filter(co=>{
+    const p1=gf(co,'공급품목1'), p2=gf(co,'공급품목2'), p3=gf(co,'공급품목3');
+    return [p1,p2,p3].includes(itemId);
+  });
+}
+
+// 기업별 해당 품목 점유율
+function getShareForItem(co, itemId){
+  const p1=gf(co,'공급품목1'), p2=gf(co,'공급품목2'), p3=gf(co,'공급품목3');
+  if(p1===itemId) return gf(co,'점유율1(%)','점유율1');
+  if(p2===itemId) return gf(co,'점유율2(%)','점유율2');
+  if(p3===itemId) return gf(co,'점유율3(%)','점유율3');
+  return '';
+}
+function getTierForItem(co, itemId){
+  const p1=gf(co,'공급품목1'), p2=gf(co,'공급품목2'), p3=gf(co,'공급품목3');
+  if(p1===itemId) return gf(co,'티어1');
+  if(p2===itemId) return gf(co,'티어2');
+  if(p3===itemId) return gf(co,'티어3');
+  return '';
+}
+
+// 기업 커뮤니케이션 이력
+function getComms(coId){
+  return DB.comm.filter(r=>gf(r,'기업ID*','기업ID')===coId)
+    .sort((a,b)=>gf(b,'날짜*','날짜').localeCompare(gf(a,'날짜*','날짜')));
+}
+
+function itemProcs(item){
+  const sub=gf(item,'세부공정').toLowerCase();
+  const ps=gf(item,'공정단계*','공정단계');
+  let found=[];
+  for(const[k,v] of Object.entries(PROC_MAP)){
+    if(sub.includes(k)||ps.toLowerCase().includes(k)) found.push(...v);
+  }
+  return [...new Set(found.length?found:[ps.replace('전공정','').replace('후공정','').trim()||'기타'])];
+}
+
+function ctrlCountry(c){
+  const r=gf(c,'규제국*','규제국');
+  return r.includes('미국')?'us':r.includes('일본')?'jp':r.includes('중국')?'cn':'etc';
+}
+const CT_COLOR={us:'#E24B4A',jp:'#EF9F27',cn:'#639922',etc:'#7F77DD'};
+
+function itemVisible(item){
+  const id=getId(item);
+  if(phase!=='all'&&!gf(item,'공정단계*','공정단계').includes(phase)) return false;
+  if(ctrlOnly&&getCtrls(id).length===0) return false;
+  if(srchQ&&!getName(item).toLowerCase().includes(srchQ)&&!id.toLowerCase().includes(srchQ)) return false;
+  if(activeCats.size<6){
+    const cat=gf(item,'규제카테고리*','규제카테고리')||
+      getCtrls(id).map(c=>gf(c,'규제카테고리*','규제카테고리')).find(v=>v)||'';
+    if(cat&&![...activeCats].includes(cat)) return false;
+  }
+  return true;
+}
+
+// ── 공정 렌더링 ───────────────────────────────────
+function render(){
+  const col=document.getElementById('proc-col');
+  col.innerHTML='';
+  let lastPhase='';
+  PROCS.forEach((proc,i)=>{
+    if(phase!=='all'&&proc.phase!==phase) return;
+    const items=DB.items.filter(it=>it.proc===proc.id||itemProcs(it).includes(proc.id)).filter(itemVisible);
+    const hasCtrl=items.some(i=>getCtrls(getId(i)).length>0);
+    if(phase==='all'&&proc.phase!==lastPhase){
+      if(lastPhase){const d=document.createElement('div');d.className='phase-label';d.textContent=proc.phase;col.appendChild(d);}
+      else{const d=document.createElement('div');d.className='phase-label';d.textContent=proc.phase;col.appendChild(d);}
+      lastPhase=proc.phase;
+    }
+    const visIdx=Array.from(col.querySelectorAll('.proc-btn')).length;
+    if(visIdx>0){const l=document.createElement('div');l.className='proc-line';col.appendChild(l);}
+    const btn=document.createElement('button');btn.className='proc-btn';
+    const box=document.createElement('div');
+    box.className=`proc-box ${proc.phase==='전공정'?'front':'back'}${selProc===proc.id?' sel':''}`;
+    box.innerHTML=`<div class="pname">${proc.name}</div>
+      <div class="pmeta">${items.length}종${hasCtrl?'  ·  ⚠ '+items.filter(i=>getCtrls(getId(i)).length>0).length+'건':''}`;
+    btn.appendChild(box);
+    btn.onclick=()=>{selProc=proc.id;selItem=null;render();showMats(proc.id);};
+    col.appendChild(btn);
+  });
+}
+
+// ── 품목 목록 ─────────────────────────────────────
+function showMats(procId){
+  const proc=PROCS.find(p=>p.id===procId);
+  const items=DB.items.filter(it=>itemProcs(it).includes(procId)&&itemVisible(it));
+  const col=document.getElementById('mat-col');
+  if(!items.length){col.innerHTML=`<div class="mat-empty">이 공정에 해당하는 품목이 없습니다</div>`;return;}
+  const color=proc.phase==='전공정'?'var(--blue-400)':'var(--green-400)';
+  let html=`<div class="mat-hdr"><div class="mat-hdot" style="background:${color}"></div>${proc.name} <span style="font-weight:400;font-size:11px;color:var(--text3)">${items.length}개</span></div><div class="mat-grid">`;
+  items.forEach(item=>{
+    const id=getId(item);
+    const ctrls=getCtrls(id);
+    const cts=[...new Set(ctrls.map(ctrlCountry))];
+    const stripColor=cts.length===0?'transparent':cts.length>1?`linear-gradient(90deg,${cts.map(ct=>CT_COLOR[ct]).join(',')})`:CT_COLOR[cts[0]];
+    const dots=cts.map(ct=>`<div class="mdot" style="background:${CT_COLOR[ct]}"></div>`).join('');
+    const hs=gf(item,'HSK코드(한국)*','HSK코드(한국)','HSK코드');
+    html+=`<div class="mat-card${selItem===id?' sel':''}" onclick="showDetail('${id}')">
+      <div class="ctrl-strip" style="background:${stripColor}"></div>
+      <div class="mname">${getName(item)}</div>
+      <div class="mhs">${hs}</div>
+      ${dots?`<div class="mdots">${dots}</div>`:''}
+    </div>`;
+  });
+  html+='</div>';
+  col.innerHTML=html;
+}
+
+// ── 상세 패널 ─────────────────────────────────────
+function showDetail(itemId){
+  selItem=itemId;
+  document.querySelectorAll('.mat-card').forEach(c=>c.classList.toggle('sel',c.onclick&&c.onclick.toString().includes(`'${itemId}'`)));
+
+  const item=DB.items.find(i=>getId(i)===itemId);
+  if(!item){return;}
+
+  const id=getId(item);
+  const name=getName(item);
+  const hsk=gf(item,'HSK코드(한국)*','HSK코드(한국)');
+  const hskCn=gf(item,'HSK코드(중국)');
+  const cas=gf(item,'CAS번호');
+  const cat=gf(item,'대분류*','대분류');
+  const phase_=gf(item,'공정단계*','공정단계');
+  const ctrls=getCtrls(id);
+  const companies=getCompaniesForItem(id);
+  const trades=getTradeRows(id);
+
+  // 배지
+  const ctrlBadges=ctrls.length
+    ?[...new Set(ctrls.map(ctrlCountry))].map(ct=>{
+      const label={us:'미국 EAR',jp:'일본 외환법',cn:'중국 수출통제'}[ct]||'기타';
+      return `<span class="badge badge-${ct}">${label}</span>`;
+    }).join('')
+    :`<span class="badge badge-none">수출통제 없음</span>`;
+
+  // 탭 내용
+  // 개요
+  const def=gf(item,'품목 개념·정의*','품목 개념·정의');
+  const usage=gf(item,'사용 용도(상세)*','사용 용도(상세)','반도체 용도');
+  const state=gf(item,'물질상태');
+  const origin=gf(item,'주요 생산국');
+  const altv=gf(item,'대체 가능 여부');
+  const note=gf(item,'비고');
+
+  // 밸류체인
+  const vc=gf(item,'품목 밸류체인*','품목 밸류체인');
+  const vcNodes=vc.split('→').map(s=>s.trim()).filter(Boolean);
+
+  // 수출통제
+  const ctrlHtml=ctrls.length?ctrls.map(c=>{
+    const ct=ctrlCountry(c);
+    const flag={us:'🇺🇸',jp:'🇯🇵',cn:'🇨🇳'}[ct]||'🌐';
+    const label={us:'미국 EAR',jp:'일본 외환법',cn:'중국 수출통제'}[ct]||'기타';
+    const cat=gf(c,'규제카테고리*','규제카테고리');
+    const ann=gf(c,'발표일'),enf=gf(c,'시행일'),url=gf(c,'수출통제 원문(URL)');
+    return `<div class="ctrl-card ${ct}">
+      <div class="ctrl-head">${flag} ${label} — ${gf(c,'규제분류/조항')}${cat?` <small style="opacity:.7">[${cat}]</small>`:''}
+      </div>
+      <div class="ctrl-body">${gf(c,'수출통제 배경')}</div>
+      ${gf(c,'공급망 영향')?`<div class="ctrl-body" style="margin-top:3px"><b>영향:</b> ${gf(c,'공급망 영향')}</div>`:''}
+      ${gf(c,'한국 영향')?`<div class="ctrl-body"><b>한국:</b> ${gf(c,'한국 영향')}</div>`:''}
+      ${ann||enf?`<div class="ctrl-date">발표: ${ann||'—'} / 시행: ${enf||'—'}</div>`:''}
+      ${url?`<div class="ctrl-link"><a href="${url}" target="_blank">원문 →</a></div>`:''}
+    </div>`;
+  }).join(''):`<div class="empty-note">현재 주요 수출통제 없음</div>`;
+
+  // 무역통계
+  // 히스토리
+  const histories=getHistories(id);
+  const histHtml=histories.length?'<div class="sec" style="margin-top:10px">중국 수출통제 히스토리</div>'+
+    histories.sort(function(a,b){return String(gf(b,'발표일')).localeCompare(String(gf(a,'발표일')));}).map(function(h){
+      var stat=gf(h,'시행현황');
+      var statBg={'시행중':'#E8F5E9','종료':'#FFEBEE','중단':'#FFF3E0','예정':'#E3F2FD'}[stat]||'#F5F5F5';
+      var statFg={'시행중':'#1B5E20','종료':'#B71C1C','중단':'#E65100','예정':'#1565C0'}[stat]||'#757575';
+      return '<div class="ctrl-card cn" style="margin-bottom:5px">'
+        +'<div class="ctrl-head" style="display:flex;justify-content:space-between;align-items:center">'
+        +'<span>'+gf(h,'분류*','분류')+'  '+gf(h,'공고번호')+'</span>'
+        +(stat?'<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:'+statBg+';color:'+statFg+';font-weight:600">'+stat+'</span>':'')
+        +'</div>'
+        +'<div class="ctrl-body">'+gf(h,'통제 내용')+'</div>'
+        +'<div class="ctrl-date">발표: '+(gf(h,'발표일')||'—')+' / 시행: '+(gf(h,'시행일')||'—')+'</div>'
+        +'</div>';
+    }).join(''):'';
+
+  // 무역통계
+  const imp=getTradeByDiv(id,'수입액');
+  const exp=getTradeByDiv(id,'수출액');
+  const impR=getTradeByRegion(id,'수입액');
+  const expR=getTradeByRegion(id,'수출액');
+  const YEARS=['2022','2023','2024','2025'];
+  function mkRow(d,label,unit){
+    if(!d) return '';
+    const vs=YEARS.map(y=>{const v=d['금액_'+y];return(v!==undefined&&v!==''&&v!==null&&v!==0)?Number(v).toLocaleString():'—';});
+    return '<tr><td style="color:var(--text2);font-size:10px;padding:4px 6px;font-weight:500">'+label+'</td>'
+      +vs.map(v=>'<td style="text-align:right;padding:4px 6px;font-size:11px;font-weight:500">'+v+'</td>').join('')
+      +'<td style="color:var(--text3);font-size:10px;padding:4px 6px">'+unit+'</td></tr>';
+  }
+  function mkRegions(regions){
+    if(!regions||!regions.length) return '';
+    return regions.map(function(r){
+      var region=gf(r,'지역');
+      var ps=YEARS.map(function(y){
+        var v=r['비중_'+y];
+        if(v===undefined||v===''||v===null) return '—';
+        var n=parseFloat(v);return isNaN(n)?'—':Math.round(n*100)+'%';
+      });
+      return '<tr style="font-size:10px"><td style="color:var(--text2);padding:3px 6px;padding-left:16px">∟ '+region+'</td>'
+        +ps.map(function(p){return '<td style="text-align:right;padding:3px 6px;color:var(--text3)">'+p+'</td>';}).join('')+'<td></td></tr>';
+    }).join('');
+  }
+  const ts='width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px';
+  const ths='text-align:right;padding:3px 6px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)';
+  const yh='<tr><th style="text-align:left;padding:3px 6px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)"></th>'
+    +YEARS.map(function(y){return'<th style="'+ths+'">'+y+'</th>';}).join('')+'<th style="'+ths+'">단위</th></tr>';
+  const tradeHtml=(imp||exp)?`<table style="${ts}">${yh}${mkRow(imp,'수입액 (전세계)',gf(imp,'단위'))}${mkRegions(impR)}${mkRow(exp,'수출액 (전세계)',gf(exp,'단위'))}${mkRegions(expR)}</table>`:'<div class="empty-note">무역통계 데이터 없음</div>';
+
+  // 공급기업 탭 — 기업마스터 연동
+  const natCls=nat=>{
+    if(!nat) return 'de';
+    if(nat.includes('한국')) return 'kr';
+    if(nat.includes('일본')) return 'jp';
+    if(nat.includes('미국')) return 'us';
+    if(nat.includes('중국')) return 'cn';
+    return 'de';
+  };
+  const coChips=companies.length
+    ?companies.map(co=>{
+      const coId=gf(co,'기업ID*','기업ID');
+      const nat=gf(co,'국적*','국적');
+      const share=getShareForItem(co,id);
+      return `<span class="co-chip chip-${natCls(nat)}" onclick="showCoDetail('${coId}','${id}')">
+        <span class="nat-dot"></span>${gf(co,'기업명(한국)')||gf(co,'기업명(영문)')}${share?` <small style="opacity:.7">${share}%</small>`:''}
+      </span>`;
+    }).join('')
+    :`<div class="empty-note">기업 정보 없음 (04_기업마스터 확인)</div>`;
+
+  const det=document.getElementById('det-col');
+  det.innerHTML=`
+  <div class="det-hdr">
+    <div class="det-cats">
+      <span class="dcat">${phase_}</span>
+      ${cat?`<span class="dcat">${cat}</span>`:''}
+    </div>
+    <div class="det-name">${name}</div>
+    <div class="det-hs">HSK(한): ${hsk||'—'} · HSK(중): ${hskCn||'—'} · CAS: ${cas||'—'}</div>
+    <div class="det-badges">${ctrlBadges}</div>
+  </div>
+  <div class="tabs">
+    <div class="tab on" onclick="stab('개요',this)">개요</div>
+    <div class="tab" onclick="stab('밸류체인',this)">밸류체인</div>
+    <div class="tab" onclick="stab('수출통제',this)">수출통제${ctrls.length?` <span style="background:var(--red-50);color:var(--red-600);border-radius:4px;padding:0 4px;font-size:9px">${ctrls.length}</span>`:''}</div>
+    <div class="tab" onclick="stab('무역통계',this)">무역통계</div>
+    <div class="tab" onclick="stab('기업',this)">공급기업${companies.length?` <span style="background:var(--blue-50);color:var(--blue-600);border-radius:4px;padding:0 4px;font-size:9px">${companies.length}</span>`:''}</div>
+  </div>
+  <div class="tbody on" id="tt-개요">
+    <div class="field"><span class="fl">개념·정의</span><span class="fv">${def||'—'}</span></div>
+    <div class="field"><span class="fl">사용 용도</span><span class="fv">${usage||'—'}</span></div>
+    <div class="field"><span class="fl">물질 상태</span><span class="fv">${state||'—'}</span></div>
+    <div class="field"><span class="fl">주요 생산국</span><span class="fv">${origin||'—'}</span></div>
+    <div class="field"><span class="fl">대체 가능성</span><span class="fv">${altv||'—'}</span></div>
+    ${note?`<div class="field"><span class="fl">비고</span><span class="fv">${note}</span></div>`:''}
+  </div>
+  <div class="tbody" id="tt-밸류체인">
+    ${vcNodes.length>1?`<div class="vc-wrap">${vcNodes.map((n,i)=>`<span class="vc-n">${n}</span>${i<vcNodes.length-1?'<span class="vc-a">→</span>':''}`).join('')}</div>`:`<div class="fv" style="font-size:11px;line-height:1.7">${vc||'밸류체인 정보 없음'}</div>`}
+  </div>
+  <div class="tbody" id="tt-수출통제">${ctrlHtml}${histHtml}</div>
+  <div class="tbody" id="tt-무역통계">${tradeHtml}</div>
+  <div class="tbody" id="tt-기업">
+    <div class="sec">공급기업 (클릭 → 담당자·이력)</div>
+    <div class="co-chip-wrap">${coChips}</div>
+    <div id="co-detail-area"></div>
+  </div>`;
+}
+
+function stab(n,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.tbody').forEach(t=>t.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('tt-'+n).classList.add('on');
+}
+
+// ── 기업 상세 ─────────────────────────────────────
+function showCoDetail(coId, itemId){
+  // 칩 선택 표시
+  document.querySelectorAll('.co-chip').forEach(c=>{
+    c.classList.toggle('sel',c.onclick&&c.onclick.toString().includes(`'${coId}'`));
+  });
+
+  const co=DB.company.find(c=>gf(c,'기업ID*','기업ID')===coId);
+  if(!co){return;}
+
+  const nat=gf(co,'국적*','국적');
+  const coName=gf(co,'기업명(한국)')||gf(co,'기업명(영문)');
+  const coEn=gf(co,'기업명(영문)');
+  const stat=gf(co,'거래상태');
+  const statCls={'거래중':'st-active','검토중':'st-review','모니터링':'st-watch','중단':'st-stop'}[stat]||'st-watch';
+  const share=getShareForItem(co,itemId);
+  const tier=getTierForItem(co,itemId);
+  const recentNote=gf(co,'최근파악내용');
+  const lastContact=gf(co,'최근연락일');
+
+  // 담당자
+  const d1name=gf(co,'담당자1_이름');
+  const d1title=gf(co,'담당자1_직책');
+  const d1email=gf(co,'담당자1_이메일');
+  const d1phone=gf(co,'담당자1_전화');
+  const d1msg=gf(co,'담당자1_메신저');
+  const d2name=gf(co,'담당자2_이름');
+  const d2title=gf(co,'담당자2_직책');
+  const d2email=gf(co,'담당자2_이메일');
+  const d2phone=gf(co,'담당자2_전화');
+
+  const makeContact=(name,title,email,phone,msg)=>`
+    <div class="sec">${name||'담당자'} ${title?`<span style="font-weight:400;font-size:10px;color:var(--text3)">${title}</span>`:''}</div>
+    <div class="contact-g">
+      ${email?`<div class="ci"><div class="ci-label">이메일</div><div class="ci-val"><a href="mailto:${email}">${email}</a></div></div>`:''}
+      ${phone?`<div class="ci"><div class="ci-label">전화</div><div class="ci-val">${phone}</div></div>`:''}
+      ${msg?`<div class="ci"><div class="ci-label">메신저</div><div class="ci-val">${msg}</div></div>`:''}
+      ${lastContact?`<div class="ci"><div class="ci-label">최근 연락</div><div class="ci-val" style="color:var(--blue-600)">${lastContact}</div></div>`:''}
+    </div>`;
+
+  // 커뮤니케이션 이력
+  const comms=getComms(coId).slice(0,5);
+  const typeClass={'전화':'mtype-call','미팅':'mtype-meet','이메일':'mtype-mail','화상회의':'mtype-video'};
+  const commHtml=comms.length?comms.map(c=>{
+    const type=gf(c,'유형');
+    const done=gf(c,'완료여부');
+    const action=gf(c,'후속조치');
+    return `<div class="memo">
+      <div class="memo-top">
+        <span class="memo-date">${gf(c,'날짜*','날짜')}</span>
+        ${type?`<span class="memo-type ${typeClass[type]||'mtype-call'}">${type}</span>`:''}
+        ${gf(c,'관련품목')?`<span style="font-size:10px;color:var(--text3)">${gf(c,'관련품목')}</span>`:''}
+      </div>
+      <div class="memo-body">${gf(c,'내용*','내용')}</div>
+      ${action?`<div class="memo-action">→ ${action} <span class="memo-done ${done==='완료'?'done-y':'done-n'}">${done||'미완료'}</span></div>`:''}
+    </div>`;
+  }).join(''):`<div class="empty-note">커뮤니케이션 이력 없음</div>`;
+
+  // initials
+  const initials=(coName||coEn||'?').replace(/[^가-힣A-Za-z]/g,'').slice(0,2).toUpperCase();
+  const natColors={한국:'#E1F5EE,#085041',일본:'#FAEEDA,#633806',미국:'#E6F1FB,#185FA5',중국:'#FCEBEB,#A32D2D'};
+  const [abg,afg]=(natColors[nat]||'#F1EFE8,#5F5E5A').split(',');
+
+  const area=document.getElementById('co-detail-area');
+  area.innerHTML=`<div class="co-detail show">
+    <div class="co-dhead">
+      <div class="co-avatar" style="background:${abg};color:${afg}">${initials}</div>
+      <div>
+        <div class="co-dname">${coName} <span class="status-tag ${statCls}">${stat}</span></div>
+        <div class="co-dsub">${nat} · ${tier?tier+' 공급사 · ':''}${share?'점유율 '+share+'%':'점유율 정보 없음'}</div>
+      </div>
+    </div>
+    <div class="co-dbody">
+      ${recentNote?`<div class="recent-note"><div class="recent-note-label">최근 파악 내용</div>${recentNote}</div>`:''}
+      ${d1name?makeContact(d1name,d1title,d1email,d1phone,d1msg):'<div class="empty-note">담당자 정보 없음</div>'}
+      ${d2name?makeContact(d2name,d2title,d2email,d2phone,''):''}
+      <div class="sec">커뮤니케이션 이력 (최근 5건)</div>
+      <div class="memo-list">${commHtml}</div>
+    </div>
+  </div>`;
+}
+
+// ── 데모 데이터 ───────────────────────────────────
+function loadDemo(){
+  DB.items=[
+    {'품목ID*':'HBr','품목명(한)*':'브롬화수소 (HBr)','대분류*':'특수가스','공정단계*':'전공정','세부공정':'식각(Etch)','HSK코드(한국)*':'2811.19-2000','HSK코드(중국)':'2811190090','CAS번호':'10035-10-6','물질상태':'기체/액체','품목 개념·정의*':'브롬(Br)과 수소(H)의 무기화합물. 무색 자극성 기체. 반도체용은 99.999%+ 고순도 사용.','사용 용도(상세)*':'실리콘·폴리실리콘 건식 식각 핵심 공정가스. 게이트 패터닝, STI 공정에 주로 투입.','품목 밸류체인*':'브롬 원료 채취(이스라엘·중국) → HBr 합성 → 고순도 정제(5N+) → 고압실린더 충전 → 팹 공급','주요 생산국':'일본(55%), 미국(30%), 한국(12%)','대체 가능 여부':'Cl₂로 일부 대체 가능하나 선택비 차이로 완전대체 어려움','규제카테고리*':'US_CHEM'},
+    {'품목ID*':'HF','품목명(한)*':'불화수소 (HF)','대분류*':'특수가스','공정단계*':'전공정','세부공정':'식각(Etch)/세정','HSK코드(한국)*':'2811.11-1000','HSK코드(중국)':'2811110000','CAS번호':'7664-39-3','물질상태':'기체/액체','품목 개념·정의*':'불소(F)와 수소(H)의 화합물. 반도체용은 초고순도(5N~7N) 제품 사용.','사용 용도(상세)*':'실리콘 산화막 식각, 자연산화막 제거, 웨이퍼 세정의 핵심 소재.','품목 밸류체인*':'형석(CaF₂) 채취 → HF 합성 → 고순도 정제(5N~7N) → 팹 공급','주요 생산국':'일본(40%), 한국(30%), 중국(20%)','대체 가능 여부':'고순도 단계는 일본 의존','비고':'2019 일본 수출규제 핵심 3대 품목','규제카테고리*':'JP_SEMICON'},
+    {'품목ID*':'Ne','품목명(한)*':'네온 (Ne)','대분류*':'희귀가스','공정단계*':'전공정','세부공정':'노광(Litho)','HSK코드(한국)*':'2804.29-1000','HSK코드(중국)':'2804290000','CAS번호':'7440-01-9','물질상태':'기체','품목 개념·정의*':'원소번호 10번 희귀가스. ArF 엑시머 레이저 혼합가스 원료로 노광에 필수.','사용 용도(상세)*':'ArF 레이저 공진 매질 주요 성분(~96%). 노광 장비 레이저 가스로 소비.','품목 밸류체인*':'공기 액화분리 → 농축(우크라이나 철강소 부산물) → 고순도 정제(5N+) → 팹 공급','주요 생산국':'우크라이나(45%), 중국(15%), 미국(10%)','대체 가능 여부':'대체 불가 — ArF 레이저 성능 의존','규제카테고리*':''},
+    {'품목ID*':'PR_EUV','품목명(한)*':'EUV 포토레지스트','대분류*':'감광재','공정단계*':'전공정','세부공정':'노광(Litho)','HSK코드(한국)*':'3707.90-9000','HSK코드(중국)':'3707909000','CAS번호':'—','물질상태':'액체','품목 개념·정의*':'EUV(13.5nm) 노광 공정용 감광성 고분자 소재.','사용 용도(상세)*':'7nm 이하 첨단 반도체 패턴 형성. 도포→노광→현상으로 회로 패턴 전사.','품목 밸류체인*':'고분자 합성 → PR 배합·정제(JSR·TOK) → 품질 테스트 → 팹 공급','주요 생산국':'일본(95%+)','대체 가능 여부':'대체 불가 수준','비고':'일본 수출규제 3대 품목','규제카테고리*':'JP_SEMICON'},
+    {'품목ID*':'NF3','품목명(한)*':'삼불화질소 (NF₃)','대분류*':'특수가스','공정단계*':'전공정','세부공정':'증착(CVD)/세정','HSK코드(한국)*':'2812.10-1000','HSK코드(중국)':'2812101000','CAS번호':'7783-54-2','물질상태':'기체','품목 개념·정의*':'질소(N)와 불소(F) 3개의 화합물. CVD 챔버 세정에 필수.','사용 용도(상세)*':'CVD 챔버 내 잔류 실리콘·산화막 제거(in-situ 세정).','품목 밸류체인*':'질소·불소 원료 → NF₃ 합성 → 고순도 정제(5N+) → 팹 공급','주요 생산국':'한국(40%), 일본(25%), 중국(20%)','규제카테고리*':'JP_SEMICON'},
+    {'품목ID*':'Ga','품목명(한)*':'갈륨 (Ga)','대분류*':'희소금속','공정단계*':'후공정','세부공정':'패키징/기판','HSK코드(한국)*':'8112.21-0000','HSK코드(중국)':'8112210000','CAS번호':'7440-55-3','물질상태':'고체(액체)','품목 개념·정의*':'원소번호 31번 금속. 상온(29.76℃)에서 액체. 아연·알루미늄 제련 부산물.','사용 용도(상세)*':'GaAs·GaN 웨이퍼 원료. RF 반도체·전력반도체·LED.','품목 밸류체인*':'보크사이트·아연광 제련 부산물 → 갈륨 추출 → 전해정제(4N~6N) → 기판 공급','주요 생산국':'중국(80%), 러시아(5%), 한국(3%)','규제카테고리*':'CN_MINERAL'},
+    {'품목ID*':'CMP_Slurry','품목명(한)*':'CMP 슬러리','대분류*':'연마재','공정단계*':'전공정','세부공정':'CMP(연마)','HSK코드(한국)*':'3824.99-9000','HSK코드(중국)':'3824999990','CAS번호':'—','물질상태':'액체(슬러리)','품목 개념·정의*':'CMP 공정용 연마입자와 화학 첨가제의 혼합 슬러리.','사용 용도(상세)*':'웨이퍼 표면 단차 제거 및 평탄화.','품목 밸류체인*':'콜로이달 실리카/세리아 합성 → 첨가제 배합 → pH 조정 → 팹 공급','주요 생산국':'미국(35%), 일본(30%), 한국(20%)','규제카테고리*':'KR_SUPPLY'},
+    {'품목ID*':'WF6','품목명(한)*':'육불화텅스텐 (WF₆)','대분류*':'CVD 전구체','공정단계*':'전공정','세부공정':'증착(CVD)','HSK코드(한국)*':'2812.19-0000','HSK코드(중국)':'2812190090','CAS번호':'7783-82-6','물질상태':'기체','품목 개념·정의*':'텅스텐(W)과 불소(F) 6개의 화합물. CVD 공정에서 텅스텐 금속막 형성에 사용.','사용 용도(상세)*':'텅스텐 CVD 핵심 전구체. W-plug 및 컨택 홀 매립에 사용.','품목 밸류체인*':'텅스텐 광석(WO₃) → F₂와 반응 → WF₆ 합성 → 고순도 정제(5N) → 팹 공급','주요 생산국':'미국(45%), 독일(25%), 일본(20%)','규제카테고리*':'US_CHEM'},
+    {'품목ID*':'Si_Wafer','품목명(한)*':'실리콘 웨이퍼','대분류*':'웨이퍼','공정단계*':'전공정','세부공정':'기판','HSK코드(한국)*':'3818.00-1000','HSK코드(중국)':'3818000000','CAS번호':'7440-21-3','물질상태':'고체','품목 개념·정의*':'고순도 실리콘 단결정 기판. 반도체 소자 제조의 최기본 재료. 현재 주력 300mm.','사용 용도(상세)*':'모든 반도체 소자의 기반 기판. 표면 결함·평탄도·순도가 수율에 직결.','품목 밸류체인*':'규사(SiO₂) 채취 → 폴리실리콘 → 단결정 성장 → 슬라이싱·폴리싱 → 팹 공급','주요 생산국':'일본(55%), 독일(15%), 한국(12%)','규제카테고리*':'US_SEMICON'},
+    {'품목ID*':'EMC','품목명(한)*':'에폭시 몰딩 컴파운드','대분류*':'봉지재','공정단계*':'후공정','세부공정':'패키징','HSK코드(한국)*':'3907.30-0000','HSK코드(중국)':'3907300000','CAS번호':'—','물질상태':'고체(분말/과립)','품목 개념·정의*':'반도체 패키지 보호용 열경화성 에폭시 수지 혼합물.','사용 용도(상세)*':'QFP·BGA·SOP 등 모든 플라스틱 패키지 봉지재.','품목 밸류체인*':'에폭시 수지 합성 → 실리카 필러 코팅 → 혼합·용융 → 과립 성형 → OSAT 공급','주요 생산국':'일본(40%), 한국(25%), 대만(15%)','규제카테고리*':''},
+  ];
+  DB.ctrl=[
+    {'품목ID*':'HF','규제국*':'일본','규제기관':'경제산업성','규제분류/조항':'외환법 제48조','규제카테고리*':'JP_SEMICON','발표일':'2019-07-01','시행일':'2019-07-04','수출통제 원문(URL)':'https://www.meti.go.jp/','수출통제 배경':'한국 화이트리스트 제외. 고순도 HF 개별 허가심사 전환.','공급망 영향':'국내 반도체 공정용 초고순도 HF 수급 차질','한국 영향':'국산화 80% 달성(2023), 잔여분 수입선 다변화'},
+    {'품목ID*':'HF','규제국*':'미국','규제기관':'BIS','규제분류/조항':'EAR ECCN 1C350','규제카테고리*':'US_CHEM','발표일':'','시행일':'','수출통제 원문(URL)':'https://www.bis.doc.gov/','수출통제 배경':'CWC Schedule 3 이중용도 화학물질','공급망 영향':'對중국 수출 시 허가 필요','한국 영향':'해당 없음'},
+    {'품목ID*':'PR_EUV','규제국*':'일본','규제기관':'경제산업성','규제분류/조항':'외환법 제48조','규제카테고리*':'JP_SEMICON','발표일':'2019-07-01','시행일':'2019-07-04','수출통제 원문(URL)':'','수출통제 배경':'EUV PR 포함 불화물계 PR 수출심사 강화.','공급망 영향':'EUV PR 전량 일본 의존 → 수급 불안','한국 영향':'개별 수출허가 지속'},
+    {'품목ID*':'HBr','규제국*':'미국','규제기관':'BIS','규제분류/조항':'EAR ECCN 1C350','규제카테고리*':'US_CHEM','발표일':'','시행일':'','수출통제 원문(URL)':'https://www.bis.doc.gov/','수출통제 배경':'독성 화학물질 전구체 해당.','공급망 영향':'최종수요자 증명 필요','한국 영향':'해당 없음'},
+    {'품목ID*':'Ga','규제국*':'중국','규제기관':'상무부·해관총서','규제분류/조항':'수출통제법 제13호','규제카테고리*':'CN_MINERAL','발표일':'2023-07-03','시행일':'2023-08-01','수출통제 원문(URL)':'http://www.mofcom.gov.cn/','수출통제 배경':'갈륨·게르마늄 수출 전면 허가제. 미국 반도체 통제 보복성 조치.','공급망 영향':'전 세계 공급 80% 중국 — 가격 2~3배 급등','한국 영향':'비축물량 확보. 수입선 다변화 추진'},
+    {'품목ID*':'NF3','규제국*':'일본','규제기관':'경제산업성','규제분류/조항':'외환법 별표','규제카테고리*':'JP_SEMICON','발표일':'2019-07-01','시행일':'2019-07-04','수출통제 원문(URL)':'','수출통제 배경':'고순도 NF₃ 수출관리 강화.','공급망 영향':'일부 품목 개별허가 전환','한국 영향':'SK머티리얼즈 국내 생산으로 실질 영향 제한'},
+    {'품목ID*':'Si_Wafer','규제국*':'미국','규제기관':'BIS','규제분류/조항':'EAR ECCN 3C001','규제카테고리*':'US_SEMICON','발표일':'2022-10-07','시행일':'2022-10-07','수출통제 원문(URL)':'https://www.bis.doc.gov/','수출통제 배경':'첨단 반도체 기판 對중국 수출통제. 2022년 반도체 패키지.','공급망 영향':'중국 첨단 팹 웨이퍼 조달 제한','한국 영향':'해당 없음'},
+    {'품목ID*':'WF6','규제국*':'미국','규제기관':'BIS','규제분류/조항':'EAR ECCN 1C350','규제카테고리*':'US_CHEM','발표일':'','시행일':'','수출통제 원문(URL)':'https://www.bis.doc.gov/','수출통제 배경':'이중용도 화학물질(텅스텐 전구체).','공급망 영향':'對중국 수출 시 허가 필요','한국 영향':'해당 없음'},
+  ];
+  DB.company=[
+    {'기업ID*':'STELLA','기업명(한국)':'Stella Chemifa','기업명(영문)':'Stella Chemifa Corp.','국적*':'일본','기업유형':'제조사','상장여부':'상장','거래상태':'거래중','최근연락일':'2025-04-15','최근파악내용':'2025.04.15 통화 — Q2 선적분 정상 진행 확인. 엔화 약세로 6월 중 가격 재협의 요청 가능성. 주의 필요.','담당자1_이름':'Tanaka Hiroshi','담당자1_직책':'Sales Mgr, Korea','담당자1_이메일':'h.tanaka@stella-chemifa.co.jp','담당자1_전화':'+81-6-XXXX-XXXX','담당자1_메신저':'Line: stella_kr','담당자2_이름':'Suzuki Yuki','담당자2_직책':'Asst. Manager','담당자2_이메일':'y.suzuki@stella-chemifa.co.jp','담당자2_전화':'+81-6-XXXX-XXXX','공급품목1':'HF','티어1':'1차','점유율1(%)':35,'공급품목2':'HBr','티어2':'1차','점유율2(%)':30,'공급품목3':''},
+    {'기업ID*':'SK_MAT','기업명(한국)':'SK머티리얼즈','기업명(영문)':'SK Materials','국적*':'한국','기업유형':'제조사','상장여부':'상장','거래상태':'거래중','최근연락일':'2025-04-22','최근파악내용':'2025.04.22 통화 — 7N급 HF 양산시험 중, 6월 품질인증 목표. NF3 공급 안정적.','담당자1_이름':'김○○','담당자1_직책':'반도체소재 영업 부장','담당자1_이메일':'xxx@skmaterials.com','담당자1_전화':'010-XXXX-XXXX','담당자1_메신저':'카카오: sk_mat','담당자2_이름':'박○○','담당자2_직책':'반도체소재 영업 차장','담당자2_이메일':'yyy@skmaterials.com','담당자2_전화':'010-XXXX-XXXX','공급품목1':'HF','티어1':'1차','점유율1(%)':15,'공급품목2':'NF3','티어2':'1차','점유율2(%)':42,'공급품목3':'CMP_Slurry'},
+    {'기업ID*':'JSR','기업명(한국)':'JSR','기업명(영문)':'JSR Corporation','국적*':'일본','기업유형':'제조사','상장여부':'상장','거래상태':'거래중','최근연락일':'2025-03-10','최근파악내용':'2025.03.10 미팅 — EUV PR 차세대 제품(High-NA용) 로드맵 공유. 26년 Q1 샘플 공급 예정. 단가 동결.','담당자1_이름':'Ito Masashi','담당자1_직책':'Korea Sales Rep.','담당자1_이메일':'m.ito@jsr.co.jp','담당자1_전화':'+82-2-XXXX-XXXX','담당자1_메신저':'','담당자2_이름':'Nakamura Aya','담당자2_직책':'Technical Support','담당자2_이메일':'a.nakamura@jsr.co.jp','담당자2_전화':'+81-3-XXXX-XXXX','공급품목1':'PR_EUV','티어1':'1차','점유율1(%)':38,'공급품목2':'','공급품목3':''},
+    {'기업ID*':'VITAL','기업명(한국)':'Vital Materials','기업명(영문)':'Vital Materials Co.','국적*':'중국','기업유형':'제조사','상장여부':'비상장','거래상태':'모니터링','최근연락일':'2024-11-20','최근파악내용':'2024.11.20 이메일 — 갈륨 수출허가 심사 기간 8~12주로 장기화. 선주문 권고. 수출통제 강화로 물량 확보 어려움.','담당자1_이름':'Wang Lei','담당자1_직책':'International Sales','담당자1_이메일':'wlei@vitalmaterials.com','담당자1_전화':'+86-20-XXXX-XXXX','담당자1_메신저':'WeChat: vital_intl','담당자2_이름':'','공급품목1':'Ga','티어1':'1차','점유율1(%)':45,'공급품목2':'','공급품목3':''},
+    {'기업ID*':'CMC','기업명(한국)':'CMC Materials','기업명(영문)':'CMC Materials (Entegris)','국적*':'미국','기업유형':'제조사','상장여부':'상장','거래상태':'거래중','최근연락일':'2025-03-25','최근파악내용':'2025.03.25 미팅 — 3nm 공정용 차세대 슬러리 평가 협의. Q3 중 평가 키트 공급 예정.','담당자1_이름':'Sarah Park','담당자1_직책':'Korea Sales','담당자1_이메일':'spark@cmcmaterials.com','담당자1_전화':'+82-2-XXXX-XXXX','담당자1_메신저':'','담당자2_이름':'','공급품목1':'CMP_Slurry','티어1':'1차','점유율1(%)':28,'공급품목2':'','공급품목3':''},
+  ];
+  DB.trade=[
+    {'품목ID*':'HF','연도*':'2024','수입액(천달러)':'8200','수출액(천달러)':'1100','가격($/kg)':'1.2','생산량':'약 15만톤','주요 수입국':'일본(40%), 한국(30%)'},
+    {'품목ID*':'HBr','연도*':'2024','수입액(천달러)':'3100','수출액(천달러)':'420','가격($/kg)':'3.8','생산량':'약 2만톤','주요 수입국':'일본(55%), 미국(30%)'},
+    {'품목ID*':'Ga','연도*':'2024','수입액(천달러)':'12400','수출액(천달러)':'80','가격($/kg)':'580','생산량':'약 350톤','주요 수입국':'중국(82%)'},
+    {'품목ID*':'NF3','연도*':'2024','수입액(천달러)':'1800','수출액(천달러)':'9200','가격($/kg)':'18','생산량':'약 8,000톤','주요 수입국':'일본(40%)'},
+    {'품목ID*':'Si_Wafer','연도*':'2024','수입액(천달러)':'1240000','수출액(천달러)':'320000','가격($/장)':'85','주요 수입국':'일본(52%), 독일(28%)'},
+  ];
+  DB.comm=[
+    {'날짜*':'2025-04-22','기업ID*':'SK_MAT','담당자명':'김○○','유형':'전화','관련품목':'HF, NF3','내용*':'7N급 HF 양산시험 진행 중. 6월 품질인증 목표. 삼성 측 평가 일정 조율 필요. NF3 공급은 안정적.','후속조치':'삼성 평가 일정 확인 후 공유','완료여부':'미완료'},
+    {'날짜*':'2025-04-15','기업ID*':'STELLA','담당자명':'Tanaka Hiroshi','유형':'전화','관련품목':'HF, HBr','내용*':'Q2 선적분 정상 진행 확인. 엔화 약세로 6월 중 가격 재협의 요청 가능성. 주의 필요.','후속조치':'6월 가격 협의 대응 준비','완료여부':'완료'},
+    {'날짜*':'2025-03-25','기업ID*':'CMC','담당자명':'Sarah Park','유형':'미팅','관련품목':'CMP_Slurry','내용*':'차세대 슬러리(3nm 공정용) 평가 협의. Q3 중 평가 키트 공급 예정.','후속조치':'평가 키트 수령 후 R&D팀 전달','완료여부':'미완료'},
+    {'날짜*':'2025-03-18','기업ID*':'SK_MAT','담당자명':'박○○','유형':'미팅','관련품목':'HF','내용*':'국산화 로드맵 검토. 1분기 생산량 전분기 대비 30% 증가. 긴급 수요 발생 시 2주 내 공급 가능.','후속조치':'','완료여부':'완료'},
+    {'날짜*':'2025-03-10','기업ID*':'JSR','담당자명':'Ito Masashi','유형':'미팅','관련품목':'PR_EUV','내용*':'EUV PR 차세대 제품(High-NA용) 로드맵 공유. 26년 Q1 샘플 공급 예정. 기존 단가 동결.','후속조치':'샘플 수령 일정 확인','완료여부':'미완료'},
+    {'날짜*':'2024-11-20','기업ID*':'VITAL','담당자명':'Wang Lei','유형':'이메일','관련품목':'Ga','내용*':'갈륨 수출허가 심사 기간 8~12주로 장기화. 선주문 권고. 수출통제 강화로 물량 확보 어려움.','후속조치':'긴급 비축 물량 확보 검토','완료여부':'완료'},
+  ];
+  setS('ok','데모 데이터 (Sheets 미연결)');
+  render();
+  selProc='식각'; render(); showMats('식각');
+}
+
+// ── 초기화 ────────────────────────────────────────
+// ── 패널 너비 드래그 조절 ─────────────────────────
+(function(){
+  const handle=document.getElementById('resize-handle');
+  const grid=document.getElementById('main-grid');
+  let dragging=false, startX=0, startW=0;
+
+  handle.addEventListener('mousedown',e=>{
+    dragging=true;
+    startX=e.clientX;
+    const cols=getComputedStyle(grid).gridTemplateColumns.split(' ');
+    startW=parseFloat(cols[3])||420;
+    handle.classList.add('dragging');
+    document.body.style.cursor='col-resize';
+    document.body.style.userSelect='none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging) return;
+    const diff=startX-e.clientX;
+    const newW=Math.max(300,Math.min(700,startW+diff));
+    grid.style.gridTemplateColumns=`172px 1fr 4px ${newW}px`;
+  });
+  document.addEventListener('mouseup',()=>{
+    if(!dragging) return;
+    dragging=false;
+    handle.classList.remove('dragging');
+    document.body.style.cursor='';
+    document.body.style.userSelect='';
+  });
+})();
+
+if(CFG.sheetId) reloadData();
+else{
+  loadDemo();
+  setTimeout(()=>document.getElementById('setup').classList.add('show'),600);
+}
+</script>
+</body>
+</html>
