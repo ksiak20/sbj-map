@@ -707,7 +707,7 @@ function showDetail(itemId){
   <div class="tbody" id="tt-밸류체인">
     ${vcNodes.length>1?`<div class="vc-wrap">${vcNodes.map((n,i)=>`<span class="vc-n">${n}</span>${i<vcNodes.length-1?'<span class="vc-a">→</span>':''}`).join('')}</div>`:`<div class="fv" style="font-size:11px;line-height:1.7">${vc||'밸류체인 정보 없음'}</div>`}
   </div>
-  <div class="tbody" id="tt-수출통제">${ctrlHtml}${histHtml}</div>
+  <div class="tbody" id="tt-수출통제">${ctrlHtml}</div>
   <div class="tbody" id="tt-무역통계">${tradeHtml}</div>
   <div class="tbody" id="tt-기업">
     <div class="sec">공급기업 (클릭 → 담당자·이력)</div>
