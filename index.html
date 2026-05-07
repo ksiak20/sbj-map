@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>반도체 소부장 공급망 맵 v4</title>
+<title>반도체 소부장 공급망 맵</title>
 <style>
 :root{
   --blue-50:#E6F1FB;--blue-200:#85B7EB;--blue-400:#378ADD;--blue-600:#185FA5;--blue-800:#0C447C;
@@ -273,7 +273,7 @@ body{font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;ba
 
 <script>
 // ── 설정 ─────────────────────────────────────────
-const SK='sbj_v4g';
+const SK='sbj_final';
 if(!localStorage.getItem(SK)){
   localStorage.setItem(SK,JSON.stringify({sheetId:'1qdvWFln2-gIXTDJJMpwD2HMm5UaZ1nYu',apiKey:''}));
 }
@@ -322,11 +322,10 @@ let phase='all',ctrlOnly=false,srchQ='',selProc=null,selItem=null;
 let activeCats=new Set(['CN_MINERAL','CN_RARE','US_SEMICON','US_CHEM','JP_SEMICON','KR_SUPPLY']);
 
 // ── Sheets 연동 ───────────────────────────────────
-/values/${enc}?key=${CFG.apiKey}`;
-}
 function gviz(sheet){
   const enc=encodeURIComponent(sheet);
-  return `https://docs.google.com/spreadsheets/d/${CFG.sheetId}/gviz/tq?tqx=out:json&sheet=${enc}`;
+  const key=CFG.apiKey?`&key=${CFG.apiKey}`:'';
+  return `https://docs.google.com/spreadsheets/d/${CFG.sheetId}/gviz/tq?tqx=out:json&sheet=${enc}${key}`;
 }
 async function fetchSheet(name){
   const enc=encodeURIComponent(name);
@@ -336,42 +335,34 @@ async function fetchSheet(name){
   const t=await r.text();
   const j=JSON.parse(t.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
   if(!j.table||!j.table.rows||j.table.rows.length===0) return [];
-
   const rawRows=j.table.rows;
-  const parsedH=j.table.parsedNumHeaders||0;
-  let cols=[],dataRows=rawRows;
 
-  if(parsedH>=1){
-    // 헤더가 인식된 경우 — label 사용
+  // parsedNumHeaders 값과 관계없이 첫 행에 * 포함 여부로 헤더 판단
+  let cols=[], dataRows=rawRows;
+  const firstVals=(rawRows[0].c||[]).map(c=>String(c&&c.v!=null?c.v:''));
+  if(firstVals.some(v=>v.includes('*'))){
+    // 첫 행이 헤더
+    cols=firstVals.map(v=>v.trim());
+    dataRows=rawRows.slice(1);
+  } else if(j.table.parsedNumHeaders>=1){
+    // Sheets가 헤더 인식한 경우
     cols=j.table.cols.map(c=>(c.label||'').trim());
   } else {
-    // 행에서 직접 헤더 찾기
-    const KEYS=['품목ID','기업ID','날짜','발표일','No','지역','단위','출처','국가','품목명','HSK','유형','기업명','국적'];
-    let hi=-1;
-    for(let i=0;i<Math.min(rawRows.length,6);i++){
-      const vals=(rawRows[i].c||[]).map(c=>String(c&&c.v!=null?c.v:''));
-      if(vals.some(v=>v.includes('*')||KEYS.includes(v))){hi=i;break;}
-    }
-    if(hi>=0){
-      cols=(rawRows[hi].c||[]).map(c=>String(c&&c.v!=null?c.v:'').trim());
-      dataRows=rawRows.slice(hi+1);
-    } else {
-      cols=j.table.cols.map(c=>c.label||c.id||'');
-    }
+    // fallback
+    cols=j.table.cols.map(c=>c.label||c.id||'');
   }
 
-  const SKIP=['──','※','새 규제','새 기업','새 품목'];
   return dataRows.map(row=>{
     const o={};
     cols.forEach((col,i)=>{
-      if(col){const cell=(row.c||[])[i];o[String(col)]=cell&&cell.v!=null?cell.v:'';}
+      if(col){const cell=(row.c||[])[i];o[col]=cell&&cell.v!=null?cell.v:'';}
     });
     return o;
   }).filter(row=>{
     const vals=Object.values(row);
     if(vals.every(v=>v===''||v===null||v===undefined)) return false;
     const first=String(Object.values(row)[0]||'').trim();
-    return first && !SKIP.some(s=>first.startsWith(s));
+    return first && !['──','※'].some(s=>first.startsWith(s));
   });
 }
 
@@ -379,12 +370,8 @@ async function reloadData(){
   if(!CFG.sheetId){setS('err','Sheets ID 미설정');return;}
   setS('ld','불러오는 중...');
   try{
-    const loads=await Promise.allSettled([
-      fetchSheet(SHEETS.items),fetchSheet(SHEETS.ctrl),
-      fetchSheet(SHEETS.trade),fetchSheet(SHEETS.company),
-      fetchSheet(SHEETS.comm),fetchSheet(SHEETS.hist),
-    ]);
-    const [items,ctrl,trade,company,comm,hist]=loads.map(r=>r.status==='fulfilled'?r.value:[]);
+    const _l=await Promise.allSettled([fetchSheet(SHEETS.items),fetchSheet(SHEETS.ctrl),fetchSheet(SHEETS.trade),fetchSheet(SHEETS.company),fetchSheet(SHEETS.comm),fetchSheet(SHEETS.hist)]);
+    const [items,ctrl,trade,company,comm,hist]=_l.map(r=>r.status==='fulfilled'?r.value:[]);
     DB={items,ctrl,trade,company,comm,hist};
     setS('ok',`${items.length}개 품목 · ${company.length}개 기업`);
     render();
@@ -630,42 +617,29 @@ function showDetail(itemId){
   }).join(''):`<div class="empty-note">현재 주요 수출통제 없음</div>`;
 
   // 무역통계
-  // 히스토리
-  const histories=getHistories(id);
-  const histHtml=histories.length?'<div class="sec" style="margin-top:10px">중국 수출통제 히스토리</div>'+
-    histories.sort((a,b)=>String(gf(b,'발표일')).localeCompare(String(gf(a,'발표일')))).map(h=>{
-      const stat=gf(h,'시행현황');
-      const sBg={'시행중':'#E8F5E9','종료':'#FFEBEE','중단':'#FFF3E0','예정':'#E3F2FD'}[stat]||'#F5F5F5';
-      const sFg={'시행중':'#1B5E20','종료':'#B71C1C','중단':'#E65100','예정':'#1565C0'}[stat]||'#757575';
-      return '<div class="ctrl-card cn" style="margin-bottom:5px">'
-        +'<div class="ctrl-head" style="display:flex;justify-content:space-between;align-items:center">'
-        +'<span>'+gf(h,'분류*','분류')+'&nbsp;&nbsp;'+gf(h,'공고번호')+'</span>'
-        +(stat?'<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:'+sBg+';color:'+sFg+';font-weight:600">'+stat+'</span>':'')
-        +'</div><div class="ctrl-body">'+gf(h,'통제 내용')+'</div>'
-        +'<div class="ctrl-date">발표: '+(gf(h,'발표일')||'—')+' / 시행: '+(gf(h,'시행일')||'—')+'</div></div>';
-    }).join(''):'';
-  // 무역통계
-  const imp=getTradeByDiv(id,'수입액');
-  const exp=getTradeByDiv(id,'수출액');
-  const impR=getTradeByRegion(id,'수입액');
-  const expR=getTradeByRegion(id,'수출액');
-  const YRS=['2022','2023','2024','2025'];
-  const mkR=(d,lbl,unit)=>{if(!d)return '';
-    const vs=YRS.map(y=>{const v=d['금액_'+y];return(v!==undefined&&v!==''&&v!==null&&v!==0)?Number(v).toLocaleString():'—';});
-    return '<tr><td style="color:var(--text2);font-size:10px;padding:4px 6px;font-weight:500">'+lbl+'</td>'
-      +vs.map(v=>'<td style="text-align:right;padding:4px 6px;font-size:11px;font-weight:500">'+v+'</td>').join('')
-      +'<td style="color:var(--text3);font-size:10px;padding:4px 6px">'+unit+'</td></tr>';};
-  const mkReg=regions=>regions.map(r=>{
-    const rg=gf(r,'지역');
-    const ps=YRS.map(y=>{const v=r['비중_'+y];if(v===undefined||v===''||v===null)return '—';const n=parseFloat(v);return isNaN(n)?'—':Math.round(n*100)+'%';});
-    return '<tr style="font-size:10px"><td style="color:var(--text2);padding:3px 6px;padding-left:16px">∟ '+rg+'</td>'
-      +ps.map(p=>'<td style="text-align:right;padding:3px 6px;color:var(--text3)">'+p+'</td>').join('')+'<td></td></tr>';
+  const histHtml=getHistories(id).sort((a,b)=>String(gf(b,'발표일')).localeCompare(String(gf(a,'발표일')))).map(h=>{
+    const stat=gf(h,'시행현황');
+    const sBg={'시행중':'#E8F5E9','종료':'#FFEBEE','중단':'#FFF3E0','예정':'#E3F2FD'}[stat]||'#F5F5F5';
+    const sFg={'시행중':'#1B5E20','종료':'#B71C1C','중단':'#E65100','예정':'#1565C0'}[stat]||'#757575';
+    return '<div class="ctrl-card cn" style="margin-bottom:5px">'
+      +'<div class="ctrl-head" style="display:flex;justify-content:space-between">'
+      +'<span>'+gf(h,'분류*','분류')+'&nbsp;'+gf(h,'공고번호')+'</span>'
+      +(stat?'<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:'+sBg+';color:'+sFg+'">'+stat+'</span>':'')
+      +'</div><div class="ctrl-body">'+gf(h,'통제 내용')+'</div>'
+      +'<div class="ctrl-date">발표: '+(gf(h,'발표일')||'—')+' / 시행: '+(gf(h,'시행일')||'—')+'</div></div>';
   }).join('');
-  const ts='width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px';
+  const imp=getTradeByDiv(id,'수입액'), exp=getTradeByDiv(id,'수출액');
+  const impR=getTradeByRegion(id,'수입액'), expR=getTradeByRegion(id,'수출액');
+  const YRS=['2022','2023','2024','2025'];
+  const mkR=(d,lbl,unit)=>!d?'':'<tr><td style="color:var(--text2);font-size:10px;padding:4px 6px;font-weight:500">'+lbl+'</td>'
+    +YRS.map(y=>{const v=d['금액_'+y];return'<td style="text-align:right;padding:4px 6px;font-size:11px">'+(v&&v!==0?Number(v).toLocaleString():'—')+'</td>';}).join('')
+    +'<td style="color:var(--text3);font-size:10px;padding:4px 6px">'+unit+'</td></tr>';
+  const mkReg=rs=>rs.map(r=>'<tr style="font-size:10px"><td style="color:var(--text2);padding:3px 6px;padding-left:14px">∟ '+gf(r,'지역')+'</td>'
+    +YRS.map(y=>{const v=r['비중_'+y];const n=parseFloat(v);return'<td style="text-align:right;padding:3px 6px;color:var(--text3)">'+(isNaN(n)?'—':Math.round(n*100)+'%')+'</td>';}).join('')
+    +'<td></td></tr>').join('');
   const ths='text-align:right;padding:3px 6px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)';
-  const yh='<tr><th style="text-align:left;padding:3px 6px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)"></th>'
-    +YRS.map(y=>'<th style="'+ths+'">'+y+'</th>').join('')+'<th style="'+ths+'">단위</th></tr>';
-  const tradeHtml=(imp||exp)?`<table style="${ts}">${yh}${mkR(imp,'수입액 (전세계)',gf(imp,'단위'))}${mkReg(impR)}${mkR(exp,'수출액 (전세계)',gf(exp,'단위'))}${mkReg(expR)}</table>`:'<div class="empty-note">무역통계 데이터 없음</div>';
+  const yh='<tr><th style="border-bottom:1px solid var(--border);padding:3px 6px"></th>'+YRS.map(y=>'<th style="'+ths+'">'+y+'</th>').join('')+'<th style="'+ths+'">단위</th></tr>';
+  const tradeHtml=(imp||exp)?'<table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px">'+yh+mkR(imp,'수입액',gf(imp,'단위'))+mkReg(impR)+mkR(exp,'수출액',gf(exp,'단위'))+mkReg(expR)+'</table>':'<div class="empty-note">무역통계 데이터 없음</div>';
 
   // 공급기업 탭 — 기업마스터 연동
   const natCls=nat=>{
